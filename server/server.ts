@@ -1,0 +1,23 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+import express from 'express';
+import Server from './src/index';
+
+const app = express();
+const server = new Server(app);
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT,
+	10
+) : 3001;
+
+(async () => {
+	try {
+		await server.start(PORT); // start database én server
+	} catch (err) {
+		console.error('Server failed to start:',
+			err
+		);
+		process.exit(1);
+	}
+})();
