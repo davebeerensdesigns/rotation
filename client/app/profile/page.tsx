@@ -64,13 +64,18 @@ export default function FetchUserProfile() {
 	
 	return (
 		<div>
-			<p><strong>Address:</strong> {userData.wallet}</p>
-			<p><strong>Chain ID:</strong> {userData.chainId}</p>
-			<p><strong>Email:</strong> {userData.email}</p>
-			<p><strong>Name:</strong> {userData.name}</p>
-			<p><strong>Image:</strong> {userData.picture}</p>
-			<p><strong>User ID:</strong> {userData.userId}</p>
-			<p><strong>Role:</strong> {userData.role}</p>
+			<div>
+				<appkit-button/>
+			</div>
+			<div>
+				<p><strong>Address:</strong> {userData.wallet}</p>
+				<p><strong>Chain ID:</strong> {userData.chainId}</p>
+				<p><strong>Email:</strong> {userData.email}</p>
+				<p><strong>Name:</strong> {userData.name}</p>
+				<p><strong>Image:</strong> {userData.picture}</p>
+				<p><strong>User ID:</strong> {userData.userId}</p>
+				<p><strong>Role:</strong> {userData.role}</p>
+			</div>
 		</div>
 	);
 }
