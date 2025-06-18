@@ -1,10 +1,20 @@
 'use client';
-import {useEffect, useState} from 'react';
+
+import {JSX, useEffect, useState} from 'react';
 import {siweConfig} from '@/config';
 import {Session} from 'next-auth';
 import {WalletLogin} from '@/components/wallet-login';
 
-export default function FetchUserProfile() {
+/**
+ * React component for fetching and displaying the user's profile.
+ *
+ * - Uses `siweConfig.getSession()` to retrieve the current session.
+ * - If a valid access token is found, it calls the `/api/auth/session` endpoint.
+ * - Displays session and user details if authenticated.
+ *
+ * @returns {JSX.Element} The user profile view or fallback UI based on authentication status.
+ */
+export default function FetchUserProfile(): JSX.Element {
 	const [session, setSession] = useState<any>(null);
 	const [userData, setUserData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
