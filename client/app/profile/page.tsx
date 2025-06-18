@@ -2,6 +2,7 @@
 import {useEffect, useState} from 'react';
 import {siweConfig} from '@/config';
 import {Session} from 'next-auth';
+import {WalletLogin} from '@/components/wallet-login';
 
 export default function FetchUserProfile() {
 	const [session, setSession] = useState<any>(null);
@@ -65,10 +66,10 @@ export default function FetchUserProfile() {
 	return (
 		<div>
 			<div>
-				<appkit-button/>
+				<WalletLogin/>
 			</div>
 			<div>
-				<p><strong>Address:</strong> {userData.wallet}</p>
+				<p><strong>Address:</strong> {userData.address}</p>
 				<p><strong>Chain ID:</strong> {userData.chainId}</p>
 				<p><strong>Email:</strong> {userData.email}</p>
 				<p><strong>Name:</strong> {userData.name}</p>

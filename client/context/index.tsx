@@ -13,6 +13,7 @@ if (!projectId) throw new Error('Project ID is not defined');
 
 // Create modal
 createAppKit({
+	themeMode: 'light',
 	adapters: [wagmiAdapter],
 	networks: chains,
 	projectId,
@@ -21,7 +22,10 @@ createAppKit({
 	features: {
 		email: false,
 		socials: [],
-		emailShowWallets: false
+		emailShowWallets: false,
+		analytics: false,
+		swaps: false,
+		onramp: false
 	}
 });
 

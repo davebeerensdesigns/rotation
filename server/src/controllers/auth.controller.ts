@@ -11,13 +11,13 @@ export default class AuthController {
 		res: Response
 	) {
 		const {
-			wallet,
+			address,
 			chainId
 		} = req.body;
 		
-		if (!wallet) {
+		if (!address) {
 			return error(res,
-				{error: 'Missing wallet address'},
+				{error: 'Missing address address'},
 				400
 			);
 		}
@@ -32,13 +32,11 @@ export default class AuthController {
 			const users = getUsersCollection();
 			const tokens = getTokensCollection();
 			
-			const normalized = wallet.toLowerCase();
-			
-			let user = await users.findOne({wallet: normalized});
+			let user = await users.findOne({address});
 			
 			if (!user) {
 				const newUser: User = {
-					wallet: normalized,
+					address,
 					chainId,
 					role: 'viewer',
 					name: 'John',
@@ -51,6 +49,12 @@ export default class AuthController {
 					_id: result.insertedId
 				};
 			}
+			
+			await users.updateOne(
+				{address},
+				{$set: {chainId}},
+				{upsert: true}
+			);
 			
 			const {
 				accessToken,
@@ -73,7 +77,7 @@ export default class AuthController {
 					accessTokenExpires,
 					user: {
 						userId: user._id,
-						wallet: user.wallet,
+						address: user.address,
 						chainId: user.chainId,
 						role: user.role,
 						name: user.name,
@@ -133,7 +137,7 @@ export default class AuthController {
 				{
 					user: {
 						userId: user._id,
-						wallet: user.wallet,
+						address: user.address,
 						chainId: user.chainId,
 						role: user.role,
 						name: user.name,

@@ -2,7 +2,7 @@ import {ObjectId} from 'mongodb';
 
 export interface User {
 	_id?: ObjectId;
-	wallet: string;
+	address: string;
 	chainId: string;
 	role: string;
 	name: string;

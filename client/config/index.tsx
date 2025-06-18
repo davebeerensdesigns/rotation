@@ -137,7 +137,6 @@ export const siweConfig = createSIWEConfig({
 			}
 			
 			await signOut();
-			window.location.href = '/';
 			return true;
 		} catch (error) {
 			return false;

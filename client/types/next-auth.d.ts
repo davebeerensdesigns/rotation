@@ -10,7 +10,7 @@ declare module 'next-auth' {
 			accessTokenExpires: number;
 			accessToken: string;
 			userId: string;
-			wallet: string;
+			address: string;
 			chainId: string;
 			role: string;
 			name?: string | null;
@@ -25,7 +25,7 @@ declare module 'next-auth' {
 		accessTokenExpires: number;
 		refreshToken: string;
 		userId: string;
-		wallet: string;
+		address: string;
 		chainId: string;
 		role: string;
 		name?: string | null;
@@ -44,7 +44,7 @@ declare module 'next-auth/jwt' {
 		accessToken: string;
 		refreshToken: string,
 		userId: string;
-		wallet: string;
+		address: string;
 		chainId: string;
 		role: string;
 		picture?: string | null;

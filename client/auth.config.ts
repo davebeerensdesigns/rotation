@@ -32,7 +32,8 @@ export default {
 					
 					const message = credentials.message as string;
 					const signature = credentials.signature as string;
-					
+					console.log(message);
+					console.log(signature);
 					const address = getAddressFromMessage(message);
 					const chainId = getChainIdFromMessage(message);
 					
@@ -63,7 +64,7 @@ export default {
 								'Content-Type': 'application/json'
 							},
 							body: JSON.stringify({
-								wallet: address,
+								address,
 								chainId
 							})
 						}
@@ -84,7 +85,7 @@ export default {
 						accessTokenExpires
 					} = data || {};
 					
-					if (!user || !user.wallet || !user.chainId) {
+					if (!user) {
 						console.error('[Authorize] Missing user info in response:',
 							data
 						);
@@ -92,12 +93,12 @@ export default {
 					}
 					
 					return {
-						id: `${user.chainId}:${user.wallet}`,
+						id: `${chainId}:${address}`,
 						accessToken,
 						refreshToken,
 						accessTokenExpires,
 						userId: user.userId,
-						wallet: user.wallet,
+						address: user.address,
 						chainId: user.chainId,
 						role: user.role,
 						name: user.name ?? null,
