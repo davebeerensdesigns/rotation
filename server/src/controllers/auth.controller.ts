@@ -1,16 +1,14 @@
 import {Request, Response} from 'express';
 import {decodeToken, generateTokens, verifyAccessToken, verifyRefreshToken} from '../utils/token.utils';
-import {User} from '../types/user';
-import {ObjectId} from 'mongodb';
-import {getTokensCollection, getUsersCollection} from '../db/get-collection';
-import {success, error} from '../utils/response.utils';
 import {generateNonce} from 'siwe';
-import {
-	/* verifySignature, */
-	getAddressFromMessage,
-	getChainIdFromMessage
-} from '@reown/appkit-siwe';
+import {getAddressFromMessage, getChainIdFromMessage} from '@reown/appkit-siwe';
 import {createPublicClient, http} from 'viem';
+import {ObjectId} from 'mongodb';
+
+import {error, success} from '../utils/response.utils';
+import {extractBearerToken, buildUserResponse} from '../utils/auth.utils';
+import {findOrCreateUser, findUserById} from '../services/user.service';
+import {storeRefreshToken, verifyStoredRefreshToken, deleteRefreshToken} from '../services/token.service';
 
 const projectId = process.env.PROJECT_ID;
 
@@ -19,12 +17,12 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	) {
-		res.setHeader('Content-Type',
-			'text/plain'
-		);
 		const nonce = generateNonce();
 		console.log('[NONCE]:',
 			nonce
+		);
+		res.setHeader('Content-Type',
+			'text/plain'
 		);
 		res.send(nonce);
 	}
@@ -34,95 +32,55 @@ export default class AuthController {
 		res: Response
 	) {
 		try {
-			if (!req.body.message) {
-				return error(res,
-					{error: 'SiweMessage is undefined'},
-					400
-				);
-			}
-			const message = req.body.message;
+			const {
+				message,
+				signature
+			} = req.body;
+			if (!message) return error(res,
+				{error: 'SiweMessage is undefined'},
+				400
+			);
 			
 			const address = getAddressFromMessage(message) as `0x${string}`;
-			const chainId = getChainIdFromMessage(message) as string;
+			const chainId = getChainIdFromMessage(message);
 			
-			const publicClient = createPublicClient(
-				{
-					transport: http(
-						`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`
-					)
-				}
-			);
+			const publicClient = createPublicClient({
+				transport: http(`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`)
+			});
 			const isValid = await publicClient.verifyMessage({
 				message,
 				address,
-				signature: req.body.signature
+				signature
 			});
+			if (!isValid) throw new Error('Invalid signature');
 			
-			if (!isValid) {
-				// throw an error if the signature is invalid
-				throw new Error('Invalid signature');
-			}
-			
-			const users = getUsersCollection();
-			const tokens = getTokensCollection();
-			
-			let user = await users.findOne({address});
-			
-			if (!user) {
-				const newUser: User = {
-					address,
-					chainId,
-					role: 'viewer',
-					name: 'John',
-					email: 'john@gmail.com',
-					picture: 'avatar.jpg'
-				};
-				const result = await users.insertOne(newUser);
-				user = {
-					...newUser,
-					_id: result.insertedId
-				};
-			}
-			
-			await users.updateOne(
-				{address},
-				{$set: {chainId}},
-				{upsert: true}
+			const user = await findOrCreateUser(address,
+				chainId
 			);
-			
 			const {
 				accessToken,
 				refreshToken
-			} = generateTokens(user._id!.toString(),
+			} = generateTokens(user._id.toString(),
 				user.role
 			);
 			const decodedAccess = decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess && typeof decodedAccess === 'object' ? decodedAccess.exp : null;
+			const accessTokenExpires = decodedAccess?.exp ?? null;
 			
-			await tokens.updateOne(
-				{userId: user._id},
-				{$set: {refreshToken}},
-				{upsert: true}
+			await storeRefreshToken(user._id,
+				refreshToken
 			);
+			
 			return success(res,
 				{
 					accessToken,
 					refreshToken,
 					accessTokenExpires,
-					user: {
-						userId: user._id,
-						address: user.address,
-						chainId: user.chainId,
-						role: user.role,
-						name: user.name,
-						email: user.email,
-						picture: user.picture
-					}
+					user: buildUserResponse(user)
 				}
 			);
-		} catch (error: any) {
+		} catch (err: any) {
 			return error(res,
-				{error: error.message},
+				{error: err.message},
 				500
 			);
 		}
@@ -132,55 +90,28 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const token = authHeader.split(' ')[1];
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Authorization header missing or malformed'},
+			401
+		);
 		
 		try {
-			const users = getUsersCollection();
 			const payload = verifyAccessToken(token);
-			if (!payload) {
-				return error(res,
-					{error: 'Invalid or expired access token'},
-					401
-				);
-			}
-			const userId = payload.sub;
-			if (!userId) {
-				return error(res,
-					{error: 'Token payload missing subject'},
-					401
-				);
-			}
-			
-			const user = await users.findOne({_id: new ObjectId(userId)});
-			if (!user) {
-				return error(res,
-					{error: 'User not found'},
-					404
-				);
-			}
-			return success(res,
-				{
-					user: {
-						userId: user._id,
-						address: user.address,
-						chainId: user.chainId,
-						role: user.role,
-						name: user.name,
-						email: user.email,
-						picture: user.picture
-					}
-				}
+			if (!payload?.sub) return error(res,
+				{error: 'Invalid or expired access token'},
+				401
 			);
 			
+			const user = await findUserById(payload.sub);
+			if (!user) return error(res,
+				{error: 'User not found'},
+				404
+			);
+			
+			return success(res,
+				{user: buildUserResponse(user)}
+			);
 		} catch (err: any) {
 			return error(res,
 				{error: err.message},
@@ -193,30 +124,15 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const token = authHeader.split(' ')[1];
-		
-		if (!token) {
-			return error(res,
-				{error: 'Missing refreshToken'},
-				400
-			);
-		}
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Missing refreshToken'},
+			400
+		);
 		
 		try {
-			const users = getUsersCollection();
-			const tokens = getTokensCollection();
-			
 			const payload = verifyRefreshToken(token);
-			if (!payload || !payload.sub || !ObjectId.isValid(payload.sub)) {
+			if (!payload?.sub || !ObjectId.isValid(payload.sub)) {
 				return error(res,
 					{error: 'Invalid or expired refresh token'},
 					401
@@ -224,37 +140,32 @@ export default class AuthController {
 			}
 			
 			const userId = new ObjectId(payload.sub);
+			const isValid = await verifyStoredRefreshToken(userId,
+				token
+			);
+			if (!isValid) return error(res,
+				{error: 'Token mismatch or revoked'},
+				401
+			);
 			
-			const saved = await tokens.findOne({userId});
-			if (!saved || saved.refreshToken !== token) {
-				return error(res,
-					{error: 'Token mismatch of revoked'},
-					401
-				);
-			}
+			const user = await findUserById(userId);
+			if (!user) return error(res,
+				{error: 'User not found'},
+				404
+			);
 			
-			const user = await users.findOne({_id: userId});
-			if (!user) {
-				return error(res,
-					{error: 'User not found'},
-					404
-				);
-			}
-			
-			const {accessToken: newAccessToken} = generateTokens(user._id.toString(),
+			const {accessToken} = generateTokens(user._id.toString(),
 				user.role
 			);
-			const decodedAccess = decodeToken(newAccessToken);
-			const accessTokenExpires =
-				decodedAccess && typeof decodedAccess === 'object' ? decodedAccess.exp : null;
+			const decodedAccess = decodeToken(accessToken);
+			const accessTokenExpires = decodedAccess?.exp ?? null;
 			
 			return success(res,
 				{
-					accessToken: newAccessToken,
+					accessToken,
 					accessTokenExpires
 				}
 			);
-			
 		} catch (err: any) {
 			return error(res,
 				{error: err.message},
@@ -267,23 +178,15 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const accessToken = authHeader.split(' ')[1];
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Authorization header missing or malformed'},
+			401
+		);
 		
 		try {
-			const tokens = getTokensCollection();
-			
-			const decoded = verifyAccessToken(accessToken);
+			const decoded = verifyAccessToken(token);
 			const userId = decoded?.sub;
-			
 			if (!userId || !ObjectId.isValid(userId)) {
 				return error(res,
 					{error: 'Invalid or missing userId in token'},
@@ -291,10 +194,7 @@ export default class AuthController {
 				);
 			}
 			
-			const objectUserId = new ObjectId(userId);
-			
-			await tokens.deleteOne({userId: objectUserId});
-			
+			await deleteRefreshToken(new ObjectId(userId));
 			return success(res,
 				{success: true}
 			);
