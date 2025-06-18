@@ -4,31 +4,65 @@ import {User} from '../types/user';
 import {ObjectId} from 'mongodb';
 import {getTokensCollection, getUsersCollection} from '../db/get-collection';
 import {success, error} from '../utils/response.utils';
+import {generateNonce} from 'siwe';
+import {
+	/* verifySignature, */
+	getAddressFromMessage,
+	getChainIdFromMessage
+} from '@reown/appkit-siwe';
+import {createPublicClient, http} from 'viem';
+
+const projectId = process.env.PROJECT_ID;
 
 export default class AuthController {
-	async sync(
+	async nonce(
 		req: Request,
 		res: Response
 	) {
-		const {
-			address,
-			chainId
-		} = req.body;
-		
-		if (!address) {
-			return error(res,
-				{error: 'Missing address address'},
-				400
-			);
-		}
-		if (!chainId) {
-			return error(res,
-				{error: 'Missing chain id'},
-				400
-			);
-		}
-		
+		res.setHeader('Content-Type',
+			'text/plain'
+		);
+		const nonce = generateNonce();
+		console.log('[NONCE]:',
+			nonce
+		);
+		res.send(nonce);
+	}
+	
+	async verify(
+		req: Request,
+		res: Response
+	) {
 		try {
+			if (!req.body.message) {
+				return error(res,
+					{error: 'SiweMessage is undefined'},
+					400
+				);
+			}
+			const message = req.body.message;
+			
+			const address = getAddressFromMessage(message) as `0x${string}`;
+			const chainId = getChainIdFromMessage(message) as string;
+			
+			const publicClient = createPublicClient(
+				{
+					transport: http(
+						`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`
+					)
+				}
+			);
+			const isValid = await publicClient.verifyMessage({
+				message,
+				address,
+				signature: req.body.signature
+			});
+			
+			if (!isValid) {
+				// throw an error if the signature is invalid
+				throw new Error('Invalid signature');
+			}
+			
 			const users = getUsersCollection();
 			const tokens = getTokensCollection();
 			
@@ -86,9 +120,9 @@ export default class AuthController {
 					}
 				}
 			);
-		} catch (err: any) {
+		} catch (error: any) {
 			return error(res,
-				{error: err.message},
+				{error: error.message},
 				500
 			);
 		}

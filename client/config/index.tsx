@@ -66,10 +66,17 @@ export const siweConfig = createSIWEConfig({
 			normalizeAddress(address)
 		),
 	getNonce: async () => {
-		const nonce = await getCsrfToken();
-		if (!nonce) {
-			throw new Error('Failed to get nonce!');
+		
+		const res = await fetch('http://localhost:3001/api/auth/nonce',
+			{
+				method: 'GET',
+				credentials: 'include'
+			}
+		);
+		if (!res.ok) {
+			throw new Error('Network response was not ok');
 		}
+		const nonce = await res.text();
 		
 		return nonce;
 	},

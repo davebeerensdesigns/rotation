@@ -11,8 +11,12 @@ class AuthRoutes {
 	
 	intializeRoutes() {
 		
-		this.router.post('/siwe-sync',
-			this.controller.sync
+		this.router.get('/nonce',
+			this.controller.nonce
+		);
+		
+		this.router.post('/verify',
+			this.controller.verify
 		);
 		
 		this.router.get('/session',

@@ -1,7 +1,6 @@
 import NextAuth, {Session, User} from 'next-auth';
 import {JWT} from 'next-auth/jwt';
 import authConfig from '@/auth.config';
-import Auth0 from 'next-auth/providers/auth0';
 
 const nextAuthSecret = process.env.NEXTAUTH_SECRET;
 if (!nextAuthSecret) {
