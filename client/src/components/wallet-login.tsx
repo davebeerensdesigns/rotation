@@ -1,6 +1,8 @@
 'use client';
 
 import {JSX} from 'react';
+import {useAppKitAccount} from '@reown/appkit-controllers/react';
+import {shortenAddress} from '@/lib/utils';
 
 /**
  * WalletLogin component that renders the AppKit Web Component button.
@@ -11,9 +13,19 @@ import {JSX} from 'react';
  * @returns {JSX.Element} A React element containing the AppKit login button.
  */
 export const WalletLogin = (): JSX.Element => {
+	const {
+		address,
+		isConnected
+	} = useAppKitAccount();
 	return (
 		<div>
-			<appkit-button/>
+			{!isConnected ? (
+				<appkit-connect-button size="sm" label="Connect login" loadingLabel="Loading..."/>
+			) : (
+				<>
+					<span>{shortenAddress(address)}</span>
+				</>
+			)}
 		</div>
 	);
 };

@@ -1,11 +1,16 @@
-import './globals.css';
+import '@/styles/globals.css';
 import {headers} from 'next/headers';
 import {cookieToInitialState} from 'wagmi';
-
 import {wagmiAdapter} from '@/config';
 import AppKitProvider from '@/context';
-import styles from '@/app/page.module.css';
 import {JSX} from 'react';
+import {Geist} from 'next/font/google';
+import {ThemeProvider} from '@/components/providers/theme-provider';
+import {ModeToggle} from '@/components/toggles/mode-toggle';
+
+const geistSans = Geist({
+	subsets: ['latin']
+});
 
 /**
  * Root layout for the entire application.
@@ -29,12 +34,12 @@ export default async function RootLayout({
 	);
 	
 	return (
-		<html lang="en">
-		<body>
+		<html lang="en" suppressHydrationWarning>
+		<body className={`${geistSans.className} antialiased`}>
 		<AppKitProvider initialState={initialState}>
-			<main className={styles.main}>
+			<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
 				{children}
-			</main>
+			</ThemeProvider>
 		</AppKitProvider>
 		</body>
 		</html>
