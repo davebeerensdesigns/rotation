@@ -2,7 +2,8 @@
 
 import {JSX} from 'react';
 import {useAppKitAccount} from '@reown/appkit-controllers/react';
-import {shortenAddress} from '@/lib/utils';
+import {WalletSheet} from '@/components/navbar/wallet-sheet';
+import {NetworkSelectButton} from '@/components/network-select-button';
 
 /**
  * WalletLogin component that renders the AppKit Web Component button.
@@ -17,15 +18,14 @@ export const WalletLogin = (): JSX.Element => {
 		address,
 		isConnected
 	} = useAppKitAccount();
-	return (
-		<div>
-			{!isConnected ? (
-				<appkit-connect-button size="sm" label="Connect login" loadingLabel="Loading..."/>
-			) : (
-				<>
-					<span>{shortenAddress(address)}</span>
-				</>
-			)}
-		</div>
-	);
+	if (isConnected) {
+		return (
+			<>
+				<NetworkSelectButton/>
+				<WalletSheet address={address}/>
+			</>
+		);
+	} else {
+		return (<appkit-connect-button size="sm" label="Connect login" loadingLabel="Loading..."/>);
+	}
 };

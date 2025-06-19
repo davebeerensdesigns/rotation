@@ -17,14 +17,7 @@ export default auth((req) => {
 	const {nextUrl} = req;
 	
 	const isAuthenticated = !!req.auth;
-	const isPublicRoute = publicRoutes.includes(nextUrl.pathname);
 	const isProtectedRoute = privateRoutes.includes(nextUrl.pathname);
-	
-	if (isPublicRoute && isAuthenticated) {
-		return Response.redirect(new URL(DEFAULT_LOGIN_REDIRECT,
-			nextUrl
-		));
-	}
 	
 	if (isProtectedRoute && !isAuthenticated) {
 		return Response.redirect(new URL(DEFAULT_LOGIN_ROUTE,

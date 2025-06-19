@@ -8,7 +8,7 @@ import {
 import {WagmiAdapter} from '@reown/appkit-adapter-wagmi';
 import {getSession, signIn, signOut} from 'next-auth/react';
 
-import {AppKitNetwork, arbitrum, mainnet, optimism, sepolia} from '@reown/appkit/networks';
+import {AppKitNetwork, arbitrum, mainnet, optimism, ham} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
 import {Session} from 'next-auth';
 
@@ -34,10 +34,19 @@ export const metadata = {
 /**
  * Supported blockchain networks for wallet connection and SIWE authentication.
  */
-export const chains: [AppKitNetwork, ...AppKitNetwork[]] = [mainnet,
-	optimism,
+export const chains = [mainnet,
 	arbitrum,
-	sepolia];
+	optimism,
+	ham] as [
+	AppKitNetwork,
+	...AppKitNetwork[]
+];
+
+export const chainLogos: Record<number, string> = {
+	1: '/chain-logo/ethereum-eth-logo.svg',
+	10: '/chain-logo/optimism-ethereum-op-logo.svg',
+	42161: '/chain-logo/arbitrum-arb-logo.svg'
+};
 
 /**
  * Adapter for connecting AppKit to Wagmi (Ethereum wallet client).
@@ -173,7 +182,7 @@ export const siweConfig = createSIWEConfig({
 	 */
 	onSignIn: (session?: SIWESession): void => {
 		if (session) {
-			window.location.href = '/profile';
+			window.location.reload();
 		}
 	},
 	
@@ -196,7 +205,10 @@ export const siweConfig = createSIWEConfig({
 					}
 				);
 			}
-			await signOut();
+			await signOut({
+					redirect: false
+				}
+			);
 			return true;
 		} catch {
 			return false;
