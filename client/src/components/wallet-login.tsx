@@ -1,9 +1,9 @@
 'use client';
 
 import {JSX} from 'react';
-import {useAppKitAccount} from '@reown/appkit-controllers/react';
 import {WalletSheet} from '@/components/navbar/wallet-sheet';
 import {NetworkSelectButton} from '@/components/network-select-button';
+import {useSession} from 'next-auth/react';
 
 /**
  * WalletLogin component that renders the AppKit Web Component button.
@@ -15,14 +15,14 @@ import {NetworkSelectButton} from '@/components/network-select-button';
  */
 export const WalletLogin = (): JSX.Element => {
 	const {
-		address,
-		isConnected
-	} = useAppKitAccount();
-	if (isConnected) {
+		data: session,
+		status
+	} = useSession();
+	if (status === 'authenticated') {
 		return (
 			<>
 				<NetworkSelectButton/>
-				<WalletSheet address={address}/>
+				<WalletSheet/>
 			</>
 		);
 	} else {
