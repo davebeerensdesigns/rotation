@@ -3,9 +3,45 @@ import {verifyAccessToken} from '../utils/token.utils';
 
 import {error, success} from '../utils/response.utils';
 import {extractBearerToken, buildUserResponse} from '../utils/auth.utils';
-import {findAndUpdateUser} from '../services/user.service';
+import {findAndUpdateUser, findUserById} from '../services/user.service';
 
 export default class UserController {
+	
+	async me(
+		req: Request,
+		res: Response
+	): Promise<Response> {
+		console.log('[ME]');
+		const token = extractBearerToken(req);
+		
+		if (!token) return error(res,
+			{error: 'Authorization header missing or malformed'},
+			401
+		);
+		
+		try {
+			const payload = verifyAccessToken(token);
+			if (!payload?.sub) return error(res,
+				{error: 'Invalid or expired access token'},
+				401
+			);
+			const user = await findUserById(payload.sub);
+			if (!user) return error(res,
+				{error: 'User not found'},
+				404
+			);
+			return success(res,
+				{
+					user: buildUserResponse(user)
+				}
+			);
+		} catch (err: any) {
+			return error(res,
+				{error: err.message},
+				401
+			);
+		}
+	}
 	
 	/**
 	 * Validates the access token from the Authorization header and returns associated user info.
@@ -35,15 +71,13 @@ export default class UserController {
 			
 			const {
 				email,
-				name,
-				picture
+				name
 			} = req.body;
 			
 			// Bouw dynamisch de update-object
 			const data: Record<string, any> = {};
 			if (email) data.email = email;
 			if (name) data.name = name;
-			if (picture) data.picture = picture;
 			
 			if (Object.keys(data).length === 0) {
 				return error(res,

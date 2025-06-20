@@ -22,6 +22,9 @@ class UserRoutes {
 	 * - PUT /update
 	 */
 	private initializeRoutes(): void {
+		this.router.get('/me',
+			this.controller.me
+		);
 		this.router.patch('/update',
 			this.controller.update
 		);

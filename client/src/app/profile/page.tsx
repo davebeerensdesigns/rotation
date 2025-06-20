@@ -27,68 +27,37 @@ export default function FetchUserProfile(): JSX.Element {
 	const [userUpdateLoading, setUserUpdateLoading] = useState(false);
 	
 	useEffect(() => {
+			if (status !== 'authenticated') return;
 			
-			const fetchUserData = async () => {
-				if (!session) {
-					setLoading(false);
-					return;
-				}
-				
-				try {
-					const accessToken = session.user?.accessToken;
-					if (!accessToken) {
-						console.warn('[PROFILE] No accessToken found in session');
-						setLoading(false);
-						return;
-					}
-					
-					const res = await fetch('http://localhost:3001/api/auth/session',
-						{
-							method: 'GET',
-							headers: {
-								Authorization: `Bearer ${accessToken}`
-							}
-						}
-					);
-					
-					if (!res.ok) {
-						console.error('[PROFILE] Server response error',
-							res.status
-						);
-						setLoading(false);
-						return;
-					}
-					
-					const {data: json} = await res.json();
-					setUserData(json.user);
-				} catch (err) {
-					console.error('[PROFILE] Error retrieving user',
-						err
-					);
-				} finally {
-					setLoading(false);
-				}
-			};
+			// Load user data from backend
+			// const fetchData = async () => {
+			// 	const user = await fetchUserProfileData();
+			// 	if (user) setUserData(user);
+			// 	setLoading(false);
+			// };
+			//
+			// fetchData();
 			
-			fetchUserData();
+			// load user data from session
+			setUserData({
+				...session.user,
+				address: session.address,
+				chainId: session.chainId
+			});
+			setLoading(false);
 		},
-		[session]
+		[status]
 	);
 	
 	const handleClick = async () => {
 		setUserUpdateLoading(true);
 		
-		const success = await updateUserProfile(update,
+		await updateUserProfile(update,
 			{
 				email: 'pietje2@piet.com',
-				name: 'Pietje Puk2',
-				picture: 'https://example.com/avatar2.jpg'
+				name: 'Pietje Puk2'
 			}
 		);
-		
-		if (success) {
-			console.log('Update completed');
-		}
 		
 		setUserUpdateLoading(false);
 	};

@@ -76,7 +76,12 @@ export default class AuthController {
 				address,
 				signature
 			});
-			if (!isValid) throw new Error('Invalid signature');
+			if (!isValid) {
+				return error(res,
+					{error: 'Invalid signature'},
+					400
+				);
+			}
 			
 			const user = await findOrCreateUser(address,
 				chainId
@@ -141,9 +146,7 @@ export default class AuthController {
 				404
 			);
 			
-			return success(res,
-				{user: buildUserResponse(user)}
-			);
+			return success(res);
 		} catch (err: any) {
 			return error(res,
 				{error: err.message},

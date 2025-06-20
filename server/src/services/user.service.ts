@@ -26,7 +26,7 @@ export const findOrCreateUser = async (
 			role: 'viewer',
 			name: 'John',
 			email: 'john@gmail.com',
-			picture: 'avatar.jpg'
+			picture: ''
 		};
 		const result = await users.insertOne(newUser);
 		user = {
