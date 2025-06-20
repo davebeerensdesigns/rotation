@@ -4,10 +4,10 @@ import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/she
 import {shortenAddress} from '@/lib/utils';
 import {JSX, useState} from 'react';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
-import {LogOut, Pencil, Settings, User} from 'lucide-react';
+import {LogOut, Pencil, User} from 'lucide-react';
 import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
-import {useSession} from 'next-auth/react';
+import {signOut, useSession} from 'next-auth/react';
 
 export const WalletSheet = (): JSX.Element => {
 	const {data: session} = useSession();
@@ -17,6 +17,7 @@ export const WalletSheet = (): JSX.Element => {
 	const handleLogout = async () => {
 		try {
 			await disconnect();
+			await signOut({redirect: false});
 			setOpen(false);
 		} catch (err) {
 			console.error('[Logout] Failed to logout cleanly',

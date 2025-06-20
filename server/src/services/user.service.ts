@@ -17,31 +17,30 @@ export const findOrCreateUser = async (
 	chainId: string
 ): Promise<User> => {
 	const users = getUsersCollection();
-	let user = await users.findOne({address});
 	
-	if (!user) {
-		const newUser: User = {
-			address,
-			chainId,
-			role: 'viewer',
-			name: 'John',
-			email: 'john@gmail.com',
-			picture: ''
-		};
-		const result = await users.insertOne(newUser);
-		user = {
-			...newUser,
-			_id: result.insertedId
-		};
-	}
-	
-	// Ensure chainId is always up to date
-	await users.updateOne({address},
-		{$set: {chainId}},
-		{upsert: true}
+	const result = await users.findOneAndUpdate(
+		{address},
+		{
+			$set: {chainId},
+			$setOnInsert: {
+				role: 'viewer',
+				name: 'John',
+				email: 'john@gmail.com',
+				picture: '',
+				address
+			}
+		},
+		{
+			upsert: true,
+			returnDocument: 'after'
+		}
 	);
 	
-	return user;
+	if (!result) {
+		throw new Error('[findOrCreateUser] Failed to create or fetch user.');
+	}
+	
+	return result;
 };
 
 /**
