@@ -1,4 +1,4 @@
-import {ObjectId} from 'mongodb';
+import {type FindOneAndUpdateOptions, ObjectId, type UpdateFilter, type WithId} from 'mongodb';
 import {getUsersCollection} from '../db/get-collection';
 import {User} from '../types/user';
 
@@ -58,4 +58,23 @@ export const findUserById = async (
 	const users = getUsersCollection();
 	const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
 	return users.findOne({_id: id});
+};
+
+export const findAndUpdateUser = async (
+	userId: string | ObjectId,
+	data: Partial<User>
+): Promise<WithId<User> | null> => {
+	const users = getUsersCollection();
+	const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
+	
+	const options: FindOneAndUpdateOptions = {
+		returnDocument: 'after' // (v5.x): returns updated doc
+	};
+	
+	const update: UpdateFilter<User> = {$set: data};
+	
+	return await users.findOneAndUpdate({_id: id},
+		update,
+		options
+	);
 };

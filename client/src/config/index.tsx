@@ -126,7 +126,7 @@ export const siweConfig = createSIWEConfig({
 	 *
 	 * @returns {Promise<Session | null>}
 	 */
-	getSession: async (): Promise<Session | null> => {
+	getSession: async (): Promise<SIWESession | null> => {
 		const session = await getSession();
 		if (!session) return null;
 		
@@ -143,7 +143,6 @@ export const siweConfig = createSIWEConfig({
 		}
 		
 		return {
-			...session,
 			address: session.address,
 			chainId: session.chainId
 		};

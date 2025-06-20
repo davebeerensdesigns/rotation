@@ -6,7 +6,8 @@ import AppKitProvider from '@/context';
 import {JSX} from 'react';
 import {Geist} from 'next/font/google';
 import {ThemeProvider} from '@/components/providers/theme-provider';
-import {ModeToggle} from '@/components/toggles/mode-toggle';
+import {SessionProvider} from 'next-auth/react';
+import {auth} from '@/auth';
 
 const geistSans = Geist({
 	subsets: ['latin']
@@ -33,14 +34,18 @@ export default async function RootLayout({
 		cookiesObject.get('cookie')
 	);
 	
+	const session = await auth();
+	
 	return (
 		<html lang="en" suppressHydrationWarning>
 		<body className={`${geistSans.className} antialiased`}>
-		<AppKitProvider initialState={initialState}>
-			<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-				{children}
-			</ThemeProvider>
-		</AppKitProvider>
+		<SessionProvider session={session}>
+			<AppKitProvider initialState={initialState}>
+				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+					{children}
+				</ThemeProvider>
+			</AppKitProvider>
+		</SessionProvider>
 		</body>
 		</html>
 	);

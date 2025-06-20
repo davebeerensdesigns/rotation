@@ -46,9 +46,22 @@ export const {
 		 */
 		async jwt({
 			user,
-			token
-		}: { user: User; token: JWT }): Promise<JWT> {
+			token,
+			trigger,
+			session
+		}: {
+			token: JWT;
+			user: User;
+			trigger?: 'signIn' | 'signUp' | 'update' | undefined;
+			session?: Session;
+		}): Promise<JWT> {
 			// Initial sign-in: merge user data into token
+			// Initial sign-in: merge user data into token
+			if (trigger === 'update' && session?.user) {
+				token.name = session.user.name ?? token.name ?? null;
+				token.email = session.user.email ?? token.email ?? null;
+				token.picture = session.user.picture ?? token.picture ?? null;
+			}
 			if (user) {
 				token.sub = user.id;
 				token.accessTokenExpires = user.accessTokenExpires;
@@ -83,7 +96,10 @@ export const {
 				
 				const {data: tokensOrError} = await response.json();
 				
-				if (!response.ok) throw tokensOrError;
+				if (!response.ok) {
+					token.error = 'RefreshAccessTokenError';
+					return token;
+				}
 				
 				const newTokens = tokensOrError as {
 					accessToken: string;

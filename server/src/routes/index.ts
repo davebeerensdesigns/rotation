@@ -1,5 +1,6 @@
 import {Application} from 'express';
 import authRoutes from './auth.routes';
+import userRoutes from './user.routes';
 
 /**
  * Initializes and registers all route handlers for the Express application.
@@ -16,6 +17,10 @@ export default class Routes {
 		// Mount authentication-related routes at /api/auth
 		app.use('/api/auth',
 			authRoutes
+		);
+		// Mount user-related routes at /api/user
+		app.use('/api/user',
+			userRoutes
 		);
 	}
 }
