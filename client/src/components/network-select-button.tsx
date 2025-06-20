@@ -28,9 +28,8 @@ export const NetworkSelectButton = () => {
 	
 	return isConnected ? (<DropdownMenu>
 		<DropdownMenuTrigger asChild>
-			
 			<Button variant="outline" size="icon">
-				{currentLogo && (
+				{currentLogo ? (
 					<div className="w-[20px] h-[20px] flex items-center justify-center">
 						<Image
 							src={currentLogo}
@@ -40,6 +39,8 @@ export const NetworkSelectButton = () => {
 							className="object-contain w-auto h-[20px]"
 						/>
 					</div>
+				) : (
+					<span className="text-xs text-muted-foreground px-2">Network</span>
 				)}
 			</Button>
 		</DropdownMenuTrigger>
