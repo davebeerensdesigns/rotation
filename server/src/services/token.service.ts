@@ -18,9 +18,6 @@ export class TokenService {
 			.getTokensCollection();
 	}
 	
-	/**
-	 * Stores or updates a refresh token for the given user.
-	 */
 	public async storeRefreshToken(
 		userId: ObjectId,
 		refreshToken: string
@@ -33,9 +30,6 @@ export class TokenService {
 		);
 	}
 	
-	/**
-	 * Verifies whether the provided refresh token matches the one stored in DB.
-	 */
 	public async verifyStoredRefreshToken(
 		userId: ObjectId,
 		token: string
@@ -45,9 +39,6 @@ export class TokenService {
 		return !!saved && saved.refreshToken === token;
 	}
 	
-	/**
-	 * Deletes a stored refresh token for the given user.
-	 */
 	public async deleteRefreshToken(userId: ObjectId): Promise<void> {
 		const tokens = this.getCollection();
 		await tokens.deleteOne({userId});

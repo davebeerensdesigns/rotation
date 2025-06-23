@@ -1,8 +1,6 @@
 import {Request, Response} from 'express';
 import {generateNonce} from 'siwe';
-import {ObjectId} from 'mongodb';
 
-import {User} from '../types/user';
 import {JwtUtils} from '../utils/jwt.utils';
 import {UserService} from '../services/user.service';
 import {ResponseUtils} from '../utils/response.utils';
@@ -10,17 +8,16 @@ import {AuthUtils} from '../utils/auth.utils';
 import {TokenService} from '../services/token.service';
 import {AuthService} from '../services/auth.service';
 
-// Singleton instance
+import {userCreateSchema} from '../validators/user.schema';
+import {UserMapper} from '../mappers/user.mapper';
+import {RequestUtils} from '../utils/request.utils';
+
 const jwtService = JwtUtils.getInstance();
 const userService = UserService.getInstance();
 const tokenService = TokenService.getInstance();
 
-// Utility type to ensure _id is present
-type PersistedUser = User & { _id: ObjectId };
-
 export default class AuthController {
 	async nonce(
-		req: Request,
 		res: Response
 	): Promise<void> {
 		const nonce = generateNonce();
@@ -41,7 +38,9 @@ export default class AuthController {
 			} = req.body;
 			if (!message || !signature) {
 				return ResponseUtils.error(res,
-					{error: 'SiweMessage is undefined or incomplete'},
+					{
+						error: 'SiweMessage is undefined or incomplete'
+					},
 					400
 				);
 			}
@@ -53,9 +52,23 @@ export default class AuthController {
 				signature
 			);
 			
+			const parsed = userCreateSchema.safeParse({
+				address,
+				chainId
+			});
+			if (!parsed.success) {
+				return ResponseUtils.error(res,
+					{
+						error: 'Invalid user data',
+						details: parsed.error.flatten()
+					},
+					400
+				);
+			}
+			
 			const user = await userService.findOrCreateUser(address,
 				chainId
-			) as PersistedUser;
+			);
 			
 			const {
 				accessToken,
@@ -64,7 +77,7 @@ export default class AuthController {
 				user.role
 			);
 			const decodedAccess = jwtService.decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess?.exp ?? null;
+			const accessTokenExpires = decodedAccess?.exp;
 			
 			await tokenService.storeRefreshToken(user._id,
 				refreshToken
@@ -75,7 +88,7 @@ export default class AuthController {
 					accessToken,
 					refreshToken,
 					accessTokenExpires,
-					user: AuthUtils.buildUserResponse(user)
+					user: UserMapper.toResponse(user)
 				}
 			);
 		} catch (err: any) {
@@ -90,31 +103,17 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
-		const token = AuthUtils.extractBearerToken(req);
-		if (!token) {
-			return ResponseUtils.error(res,
-				{
-					error: 'Authorization header missing or malformed'
-				},
-				401
-			);
-		}
 		
 		try {
-			const user = await AuthService.getUserFromAccessToken(token);
-			
-			if (!user) {
-				return ResponseUtils.error(res,
-					{
-						error: 'Invalid or expired access token'
-					},
-					401
-				);
-			}
+			const user = await RequestUtils.getAuthenticatedUser(req);
+			if (!user) return ResponseUtils.error(res,
+				{error: 'Unauthorized'},
+				401
+			);
 			
 			return ResponseUtils.success(res,
 				{
-					user: AuthUtils.buildUserResponse(user)
+					user: UserMapper.toResponse(user)
 				}
 			);
 		} catch (err: any) {
@@ -184,7 +183,9 @@ export default class AuthController {
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
-				{error: err.message},
+				{
+					error: err.message
+				},
 				401
 			);
 		}

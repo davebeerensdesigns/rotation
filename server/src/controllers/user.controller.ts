@@ -1,9 +1,10 @@
 import {Request, Response} from 'express';
 
-import {AuthUtils} from '../utils/auth.utils';
 import {ResponseUtils} from '../utils/response.utils';
-import {AuthService} from '../services/auth.service';
 import {UserService} from '../services/user.service';
+import {userUpdateSchema} from '../validators/user.schema';
+import {UserMapper} from '../mappers/user.mapper';
+import {RequestUtils} from '../utils/request.utils';
 
 const userService = UserService.getInstance();
 
@@ -12,34 +13,28 @@ export default class UserController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
-		console.log('[ME]');
-		const token = AuthUtils.extractBearerToken(req);
-		if (!token) {
-			return ResponseUtils.error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
 		
 		try {
-			const user = await AuthService.getUserFromAccessToken(token);
 			
-			if (!user) {
-				return ResponseUtils.error(res,
-					{error: 'User not found'},
-					401
-				);
-			}
+			const user = await RequestUtils.getAuthenticatedUser(req);
+			if (!user) return ResponseUtils.error(res,
+				{error: 'Unauthorized'},
+				401
+			);
+			
+			const userResponse = UserMapper.toResponse(user);
 			
 			return ResponseUtils.success(res,
 				{
-					user: AuthUtils.buildUserResponse(user)
+					user: userResponse
 				}
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
-				{error: err.message},
-				401
+				{
+					error: err.message
+				},
+				500
 			);
 		}
 	}
@@ -48,50 +43,49 @@ export default class UserController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
-		console.log('[UPDATE]');
-		const token = AuthUtils.extractBearerToken(req);
-		if (!token) {
-			return ResponseUtils.error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
 		
 		try {
-			const user = await AuthService.getUserFromAccessToken(token);
+			const user = await RequestUtils.getAuthenticatedUser(req);
+			if (!user) return ResponseUtils.error(res,
+				{error: 'Unauthorized'},
+				401
+			);
 			
-			const {
-				email,
-				name
-			} = req.body;
-			const data: Partial<typeof user> = {};
-			if (email) data.email = email;
-			if (name) data.name = name;
-			
-			if (!user || Object.keys(data).length === 0) {
+			const parsed = userUpdateSchema.safeParse(req.body);
+			if (!parsed.success) {
 				return ResponseUtils.error(res,
-					{error: 'No valid update fields provided'},
+					{
+						error: 'Validation failed',
+						details: parsed.error.format()
+					},
 					400
 				);
 			}
 			
+			const updateData = parsed.data;
+			
 			const updated = await userService.findAndUpdateUser(user._id!,
-				data
+				updateData
 			);
-			if (!updated) return ResponseUtils.error(res,
-				{error: 'User not found'},
-				404
-			);
+			if (!updated) {
+				return ResponseUtils.error(res,
+					{
+						error: 'User not found after update'
+					},
+					404
+				);
+			}
 			
 			return ResponseUtils.success(res,
 				{
-					user: AuthUtils.buildUserResponse(updated)
+					user: UserMapper.toResponse(updated)
 				}
 			);
+			
 		} catch (err: any) {
 			return ResponseUtils.error(res,
 				{error: err.message},
-				401
+				500
 			);
 		}
 	}

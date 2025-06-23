@@ -55,7 +55,8 @@ export default function FetchUserProfile(): JSX.Element {
 		await updateUserProfile(update,
 			{
 				email: 'pietje2@piet.com',
-				name: 'Pietje Puk2'
+				name: 'Pietje Puk2',
+				picture: 'avatar.jpg'
 			}
 		);
 		

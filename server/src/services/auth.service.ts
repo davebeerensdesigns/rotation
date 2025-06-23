@@ -1,11 +1,11 @@
 // auth.service.ts
 import {createPublicClient, http} from 'viem';
 import {getAddressFromMessage, getChainIdFromMessage} from '@reown/appkit-siwe';
-import {User} from '../types/user';
 import {JwtUtils} from '../utils/jwt.utils';
 import {UserService} from './user.service';
 import {TokenService} from './token.service';
 import {ObjectId} from 'mongodb';
+import {User} from '../types/user.entity';
 
 const projectId = process.env.PROJECT_ID;
 
@@ -42,7 +42,7 @@ export class AuthService {
 	
 	static async getUserFromAccessToken(token: string): Promise<User | null> {
 		const payload = jwtService.verifyAccessToken(token);
-		if (!payload?.sub || typeof payload.sub !== 'string' || !ObjectId.isValid(payload.sub)) {
+		if (typeof payload?.sub !== 'string' || !ObjectId.isValid(payload.sub)) {
 			throw new Error('Invalid or expired access token');
 		}
 		

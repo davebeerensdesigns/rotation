@@ -30,10 +30,12 @@ export async function updateUserProfile(
 	updateFn: (data: any) => Promise<any>,
 	{
 		email,
-		name
+		name,
+		picture
 	}: {
 		email: string;
 		name: string;
+		picture: string;
 	}
 ): Promise<boolean> {
 	try {
@@ -45,7 +47,8 @@ export async function updateUserProfile(
 				},
 				body: JSON.stringify({
 					email,
-					name
+					name,
+					picture
 				})
 			}
 		);

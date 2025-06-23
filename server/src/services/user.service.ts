@@ -1,11 +1,7 @@
-import {
-	FindOneAndUpdateOptions,
-	ObjectId,
-	UpdateFilter,
-	WithId
-} from 'mongodb';
-import {User} from '../types/user';
+import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
 import MongoDatabase from '../db';
+import {UserUpdateDto} from '../dtos/user.dto';
+import {User} from '../types/user.entity';
 
 export class UserService {
 	private static instance: UserService;
@@ -27,25 +23,28 @@ export class UserService {
 	public async findOrCreateUser(
 		address: string,
 		chainId: string
-	): Promise<User> {
+	): Promise<WithId<User>> {
 		const users = this.getCollection();
 		
-		const result = await users.findOneAndUpdate(
-			{address},
-			{
-				$set: {chainId},
-				$setOnInsert: {
-					role: 'viewer',
-					name: 'John',
-					email: 'john@gmail.com',
-					picture: '',
-					address
-				}
-			},
-			{
-				upsert: true,
-				returnDocument: 'after'
+		const update: UpdateFilter<User> = {
+			$set: {chainId},
+			$setOnInsert: {
+				role: 'viewer',
+				name: 'John',
+				email: 'john@gmail.com',
+				picture: '',
+				address
 			}
+		};
+		
+		const options: FindOneAndUpdateOptions = {
+			upsert: true,
+			returnDocument: 'after'
+		};
+		
+		const result = await users.findOneAndUpdate({address},
+			update,
+			options
 		);
 		
 		if (!result) {
@@ -55,7 +54,9 @@ export class UserService {
 		return result;
 	}
 	
-	public async findUserById(userId: string | ObjectId): Promise<User | null> {
+	public async findUserById(
+		userId: string | ObjectId
+	): Promise<WithId<User> | null> {
 		const users = this.getCollection();
 		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
 		return users.findOne({_id: id});
@@ -63,16 +64,13 @@ export class UserService {
 	
 	public async findAndUpdateUser(
 		userId: string | ObjectId,
-		data: Partial<User>
+		data: UserUpdateDto
 	): Promise<WithId<User> | null> {
 		const users = this.getCollection();
 		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
 		
-		const options: FindOneAndUpdateOptions = {
-			returnDocument: 'after'
-		};
-		
 		const update: UpdateFilter<User> = {$set: data};
+		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
 		
 		return await users.findOneAndUpdate({_id: id},
 			update,

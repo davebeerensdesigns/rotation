@@ -1,7 +1,7 @@
 import {MongoClient, Collection} from 'mongodb';
-import {User} from '../types/user';
 import {RefreshToken} from '../types/refresh-token';
 import {DB_NAME, MONGODB_URI} from './db.config';
+import {User} from '../types/user.entity';
 
 export default class MongoDatabase {
 	private static instance: MongoDatabase;
