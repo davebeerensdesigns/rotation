@@ -1,9 +1,12 @@
 import {Request, Response} from 'express';
-import {verifyAccessToken} from '../utils/token.utils';
 
-import {error, success} from '../utils/response.utils';
-import {extractBearerToken, buildUserResponse} from '../utils/auth.utils';
-import {findAndUpdateUser, findUserById} from '../services/user.service';
+import {JwtUtils} from '../utils/jwt.utils';
+import {UserService} from '../services/user.service';
+import {ResponseUtils} from '../utils/response.utils';
+import {AuthUtils} from '../utils/auth.utils';
+// Singleton instance
+const jwtService = JwtUtils.getInstance();
+const userService = UserService.getInstance();
 
 export default class UserController {
 	
@@ -12,31 +15,31 @@ export default class UserController {
 		res: Response
 	): Promise<Response> {
 		console.log('[ME]');
-		const token = extractBearerToken(req);
+		const token = AuthUtils.extractBearerToken(req);
 		
-		if (!token) return error(res,
+		if (!token) return ResponseUtils.error(res,
 			{error: 'Authorization header missing or malformed'},
 			401
 		);
 		
 		try {
-			const payload = verifyAccessToken(token);
-			if (!payload?.sub) return error(res,
+			const payload = jwtService.verifyAccessToken(token);
+			if (!payload?.sub) return ResponseUtils.error(res,
 				{error: 'Invalid or expired access token'},
 				401
 			);
-			const user = await findUserById(payload.sub);
-			if (!user) return error(res,
+			const user = await userService.findUserById(payload.sub);
+			if (!user) return ResponseUtils.error(res,
 				{error: 'User not found'},
 				404
 			);
-			return success(res,
+			return ResponseUtils.success(res,
 				{
-					user: buildUserResponse(user)
+					user: AuthUtils.buildUserResponse(user)
 				}
 			);
 		} catch (err: any) {
-			return error(res,
+			return ResponseUtils.error(res,
 				{error: err.message},
 				401
 			);
@@ -56,15 +59,15 @@ export default class UserController {
 	): Promise<Response> {
 		console.log('[UPDATE]');
 		// TODO: validate data
-		const token = extractBearerToken(req);
-		if (!token) return error(res,
+		const token = AuthUtils.extractBearerToken(req);
+		if (!token) return ResponseUtils.error(res,
 			{error: 'Authorization header missing or malformed'},
 			401
 		);
 		
 		try {
-			const payload = verifyAccessToken(token);
-			if (!payload?.sub) return error(res,
+			const payload = jwtService.verifyAccessToken(token);
+			if (!payload?.sub) return ResponseUtils.error(res,
 				{error: 'Invalid or expired access token'},
 				401
 			);
@@ -80,25 +83,25 @@ export default class UserController {
 			if (name) data.name = name;
 			
 			if (Object.keys(data).length === 0) {
-				return error(res,
+				return ResponseUtils.error(res,
 					{error: 'No valid update fields provided'},
 					400
 				);
 			}
 			
-			const user = await findAndUpdateUser(payload.sub,
+			const user = await userService.findAndUpdateUser(payload.sub,
 				data
 			);
-			if (!user) return error(res,
+			if (!user) return ResponseUtils.error(res,
 				{error: 'User not found'},
 				404
 			);
 			
-			return success(res,
-				{user: buildUserResponse(user)}
+			return ResponseUtils.success(res,
+				{user: AuthUtils.buildUserResponse(user)}
 			);
 		} catch (err: any) {
-			return error(res,
+			return ResponseUtils.error(res,
 				{error: err.message},
 				401
 			);
