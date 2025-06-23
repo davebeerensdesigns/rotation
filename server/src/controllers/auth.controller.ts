@@ -1,85 +1,111 @@
 import {Request, Response} from 'express';
 import {decodeToken, generateTokens, verifyAccessToken, verifyRefreshToken} from '../utils/token.utils';
-import {User} from '../types/user';
+import {generateNonce} from 'siwe';
+import {getAddressFromMessage, getChainIdFromMessage} from '@reown/appkit-siwe';
+import {createPublicClient, http} from 'viem';
 import {ObjectId} from 'mongodb';
-import {getTokensCollection, getUsersCollection} from '../db/get-collection';
-import {success, error} from '../utils/response.utils';
 
+import {error, success} from '../utils/response.utils';
+import {extractBearerToken, buildUserResponse} from '../utils/auth.utils';
+import {findOrCreateUser, findUserById} from '../services/user.service';
+import {storeRefreshToken, verifyStoredRefreshToken, deleteRefreshToken} from '../services/token.service';
+import {User} from '../types/user';
+
+const projectId = process.env.PROJECT_ID;
+
+// Utility type to ensure _id is present
+type PersistedUser = User & { _id: ObjectId };
+
+/**
+ * Controller class for handling authentication-related operations.
+ *
+ * Supports SIWE login, JWT token issuance and rotation, session validation,
+ * and logout via refresh token invalidation.
+ */
 export default class AuthController {
-	async sync(
+	/**
+	 * Generates a nonce string and sends it as a plain text response.
+	 *
+	 * Typically used in authentication flows (e.g. Sign-In With Ethereum).
+	 *
+	 * @param {Request} req - The Express request object.
+	 * @param {Response} res - The Express response object.
+	 * @returns {Promise<void>} A Promise that resolves after sending the nonce.
+	 */
+	async nonce(
 		req: Request,
 		res: Response
-	) {
-		const {
-			wallet,
-			chainId
-		} = req.body;
-		
-		if (!wallet) {
-			return error(res,
-				{error: 'Missing wallet address'},
-				400
-			);
-		}
-		if (!chainId) {
-			return error(res,
-				{error: 'Missing chain id'},
-				400
-			);
-		}
-		
+	): Promise<void> {
+		const nonce = generateNonce();
+		res.setHeader('Content-Type',
+			'text/plain'
+		);
+		res.send(nonce);
+	}
+	
+	/**
+	 * Verifies a signed SIWE message and issues access and refresh tokens.
+	 *
+	 * @param {Request} req - The Express request object containing the SIWE message and signature.
+	 * @param {Response} res - The Express response object used to send back tokens and user info.
+	 * @returns {Promise<Response>} A Promise resolving to a response with tokens, expiration time, and user data.
+	 */
+	async verify(
+		req: Request,
+		res: Response
+	): Promise<Response> {
 		try {
-			const users = getUsersCollection();
-			const tokens = getTokensCollection();
+			const {
+				message,
+				signature
+			} = req.body;
+			if (!message) return error(res,
+				{error: 'SiweMessage is undefined'},
+				400
+			);
 			
-			const normalized = wallet.toLowerCase();
+			const address = getAddressFromMessage(message) as `0x${string}`;
+			const chainId = getChainIdFromMessage(message);
 			
-			let user = await users.findOne({wallet: normalized});
+			const publicClient = createPublicClient({
+				transport: http(`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`)
+			});
 			
-			if (!user) {
-				const newUser: User = {
-					wallet: normalized,
-					chainId,
-					role: 'viewer',
-					name: 'John',
-					email: 'john@gmail.com',
-					picture: 'avatar.jpg'
-				};
-				const result = await users.insertOne(newUser);
-				user = {
-					...newUser,
-					_id: result.insertedId
-				};
+			const isValid = await publicClient.verifyMessage({
+				message,
+				address,
+				signature
+			});
+			if (!isValid) {
+				return error(res,
+					{error: 'Invalid signature'},
+					400
+				);
 			}
+			
+			const user = await findOrCreateUser(address,
+				chainId
+			) as PersistedUser;
 			
 			const {
 				accessToken,
 				refreshToken
-			} = generateTokens(user._id!.toString(),
+			} = generateTokens(user._id.toString(),
 				user.role
 			);
 			const decodedAccess = decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess && typeof decodedAccess === 'object' ? decodedAccess.exp : null;
+			const accessTokenExpires = decodedAccess?.exp ?? null;
 			
-			await tokens.updateOne(
-				{userId: user._id},
-				{$set: {refreshToken}},
-				{upsert: true}
+			await storeRefreshToken(user._id,
+				refreshToken
 			);
+			
 			return success(res,
 				{
 					accessToken,
 					refreshToken,
 					accessTokenExpires,
-					user: {
-						userId: user._id,
-						wallet: user.wallet,
-						chainId: user.chainId,
-						role: user.role,
-						name: user.name,
-						email: user.email,
-						picture: user.picture
-					}
+					user: buildUserResponse(user)
 				}
 			);
 		} catch (err: any) {
@@ -90,59 +116,37 @@ export default class AuthController {
 		}
 	}
 	
+	/**
+	 * Validates the access token from the Authorization header and returns associated user info.
+	 *
+	 * @param {Request} req - The Express request object with a bearer access token in the Authorization header.
+	 * @param {Response} res - The Express response object used to send back the session user data or error.
+	 * @returns {Promise<Response>} A Promise resolving to a response with user info or error.
+	 */
 	async session(
 		req: Request,
 		res: Response
-	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const token = authHeader.split(' ')[1];
+	): Promise<Response> {
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Authorization header missing or malformed'},
+			401
+		);
 		
 		try {
-			const users = getUsersCollection();
 			const payload = verifyAccessToken(token);
-			if (!payload) {
-				return error(res,
-					{error: 'Invalid or expired access token'},
-					401
-				);
-			}
-			const userId = payload.sub;
-			if (!userId) {
-				return error(res,
-					{error: 'Token payload missing subject'},
-					401
-				);
-			}
-			
-			const user = await users.findOne({_id: new ObjectId(userId)});
-			if (!user) {
-				return error(res,
-					{error: 'User not found'},
-					404
-				);
-			}
-			return success(res,
-				{
-					user: {
-						userId: user._id,
-						wallet: user.wallet,
-						chainId: user.chainId,
-						role: user.role,
-						name: user.name,
-						email: user.email,
-						picture: user.picture
-					}
-				}
+			if (!payload?.sub) return error(res,
+				{error: 'Invalid or expired access token'},
+				401
 			);
 			
+			const user = await findUserById(payload.sub);
+			if (!user) return error(res,
+				{error: 'User not found'},
+				404
+			);
+			
+			return success(res);
 		} catch (err: any) {
 			return error(res,
 				{error: err.message},
@@ -151,34 +155,29 @@ export default class AuthController {
 		}
 	}
 	
+	/**
+	 * Refreshes an access token using a valid refresh token.
+	 *
+	 * Verifies the refresh token's signature and checks it against stored values for the user.
+	 * If valid, a new access token is issued.
+	 *
+	 * @param {Request} req - The Express request containing a bearer refresh token.
+	 * @param {Response} res - The response object used to send the new access token or an error.
+	 * @returns {Promise<Response>} A Promise resolving to a response with the new access token and expiration timestamp.
+	 */
 	async refresh(
 		req: Request,
 		res: Response
-	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const token = authHeader.split(' ')[1];
-		
-		if (!token) {
-			return error(res,
-				{error: 'Missing refreshToken'},
-				400
-			);
-		}
+	): Promise<Response> {
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Missing refreshToken'},
+			400
+		);
 		
 		try {
-			const users = getUsersCollection();
-			const tokens = getTokensCollection();
-			
 			const payload = verifyRefreshToken(token);
-			if (!payload || !payload.sub || !ObjectId.isValid(payload.sub)) {
+			if (!payload?.sub || !ObjectId.isValid(payload.sub)) {
 				return error(res,
 					{error: 'Invalid or expired refresh token'},
 					401
@@ -186,37 +185,32 @@ export default class AuthController {
 			}
 			
 			const userId = new ObjectId(payload.sub);
+			const isValid = await verifyStoredRefreshToken(userId,
+				token
+			);
+			if (!isValid) return error(res,
+				{error: 'Token mismatch or revoked'},
+				401
+			);
 			
-			const saved = await tokens.findOne({userId});
-			if (!saved || saved.refreshToken !== token) {
-				return error(res,
-					{error: 'Token mismatch of revoked'},
-					401
-				);
-			}
+			const user = await findUserById(userId);
+			if (!user) return error(res,
+				{error: 'User not found'},
+				404
+			);
 			
-			const user = await users.findOne({_id: userId});
-			if (!user) {
-				return error(res,
-					{error: 'User not found'},
-					404
-				);
-			}
-			
-			const {accessToken: newAccessToken} = generateTokens(user._id.toString(),
+			const {accessToken} = generateTokens(user._id!.toString(),
 				user.role
 			);
-			const decodedAccess = decodeToken(newAccessToken);
-			const accessTokenExpires =
-				decodedAccess && typeof decodedAccess === 'object' ? decodedAccess.exp : null;
+			const decodedAccess = decodeToken(accessToken);
+			const accessTokenExpires = decodedAccess?.exp ?? null;
 			
 			return success(res,
 				{
-					accessToken: newAccessToken,
+					accessToken,
 					accessTokenExpires
 				}
 			);
-			
 		} catch (err: any) {
 			return error(res,
 				{error: err.message},
@@ -225,27 +219,29 @@ export default class AuthController {
 		}
 	}
 	
+	/**
+	 * Logs out the user by deleting the stored refresh token.
+	 *
+	 * Validates the access token to identify the user and revokes the corresponding refresh token.
+	 * Responds with a confirmation or appropriate error if the token is missing or invalid.
+	 *
+	 * @param {Request} req - The request object containing the access token in the Authorization header.
+	 * @param {Response} res - The response object used to send the logout confirmation or error.
+	 * @returns {Promise<Response>} A Promise resolving to a success response or an error.
+	 */
 	async logout(
 		req: Request,
 		res: Response
-	) {
-		const authHeader = req.headers.authorization;
-		
-		if (!authHeader || !authHeader.startsWith('Bearer ')) {
-			return error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		const accessToken = authHeader.split(' ')[1];
+	): Promise<Response> {
+		const token = extractBearerToken(req);
+		if (!token) return error(res,
+			{error: 'Authorization header missing or malformed'},
+			401
+		);
 		
 		try {
-			const tokens = getTokensCollection();
-			
-			const decoded = verifyAccessToken(accessToken);
+			const decoded = verifyAccessToken(token);
 			const userId = decoded?.sub;
-			
 			if (!userId || !ObjectId.isValid(userId)) {
 				return error(res,
 					{error: 'Invalid or missing userId in token'},
@@ -253,10 +249,7 @@ export default class AuthController {
 				);
 			}
 			
-			const objectUserId = new ObjectId(userId);
-			
-			await tokens.deleteOne({userId: objectUserId});
-			
+			await deleteRefreshToken(new ObjectId(userId));
 			return success(res,
 				{success: true}
 			);
