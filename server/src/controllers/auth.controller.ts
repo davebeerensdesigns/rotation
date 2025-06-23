@@ -18,6 +18,7 @@ const tokenService = TokenService.getInstance();
 
 export default class AuthController {
 	async nonce(
+		req: Request,
 		res: Response
 	): Promise<void> {
 		const nonce = generateNonce();
