@@ -1,6 +1,11 @@
-import {type FindOneAndUpdateOptions, ObjectId, type UpdateFilter, type WithId} from 'mongodb';
-import {getUsersCollection} from '../db/get-collection';
+import {
+	FindOneAndUpdateOptions,
+	ObjectId,
+	UpdateFilter,
+	WithId
+} from 'mongodb';
 import {User} from '../types/user';
+import MongoDatabase from '../db';
 
 export class UserService {
 	private static instance: UserService;
@@ -14,11 +19,16 @@ export class UserService {
 		return UserService.instance;
 	}
 	
-	async findOrCreateUser(
+	private getCollection() {
+		return MongoDatabase.getInstance()
+			.getUsersCollection();
+	}
+	
+	public async findOrCreateUser(
 		address: string,
 		chainId: string
 	): Promise<User> {
-		const users = getUsersCollection();
+		const users = this.getCollection();
 		
 		const result = await users.findOneAndUpdate(
 			{address},
@@ -45,17 +55,17 @@ export class UserService {
 		return result;
 	}
 	
-	async findUserById(userId: string | ObjectId): Promise<User | null> {
-		const users = getUsersCollection();
+	public async findUserById(userId: string | ObjectId): Promise<User | null> {
+		const users = this.getCollection();
 		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
 		return users.findOne({_id: id});
 	}
 	
-	async findAndUpdateUser(
+	public async findAndUpdateUser(
 		userId: string | ObjectId,
 		data: Partial<User>
 	): Promise<WithId<User> | null> {
-		const users = getUsersCollection();
+		const users = this.getCollection();
 		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
 		
 		const options: FindOneAndUpdateOptions = {

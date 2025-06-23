@@ -1,38 +1,36 @@
 import {Request, Response} from 'express';
 
-import {JwtUtils} from '../utils/jwt.utils';
-import {UserService} from '../services/user.service';
-import {ResponseUtils} from '../utils/response.utils';
 import {AuthUtils} from '../utils/auth.utils';
-// Singleton instance
-const jwtService = JwtUtils.getInstance();
+import {ResponseUtils} from '../utils/response.utils';
+import {AuthService} from '../services/auth.service';
+import {UserService} from '../services/user.service';
+
 const userService = UserService.getInstance();
 
 export default class UserController {
-	
 	async me(
 		req: Request,
 		res: Response
 	): Promise<Response> {
 		console.log('[ME]');
 		const token = AuthUtils.extractBearerToken(req);
-		
-		if (!token) return ResponseUtils.error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
-		
-		try {
-			const payload = jwtService.verifyAccessToken(token);
-			if (!payload?.sub) return ResponseUtils.error(res,
-				{error: 'Invalid or expired access token'},
+		if (!token) {
+			return ResponseUtils.error(res,
+				{error: 'Authorization header missing or malformed'},
 				401
 			);
-			const user = await userService.findUserById(payload.sub);
-			if (!user) return ResponseUtils.error(res,
-				{error: 'User not found'},
-				404
-			);
+		}
+		
+		try {
+			const user = await AuthService.getUserFromAccessToken(token);
+			
+			if (!user) {
+				return ResponseUtils.error(res,
+					{error: 'User not found'},
+					401
+				);
+			}
+			
 			return ResponseUtils.success(res,
 				{
 					user: AuthUtils.buildUserResponse(user)
@@ -46,59 +44,49 @@ export default class UserController {
 		}
 	}
 	
-	/**
-	 * Validates the access token from the Authorization header and returns associated user info.
-	 *
-	 * @param {Request} req - The Express request object with a bearer access token in the Authorization header.
-	 * @param {Response} res - The Express response object used to send back the session user data or error.
-	 * @returns {Promise<Response>} A Promise resolving to a response with user info or error.
-	 */
 	async update(
 		req: Request,
 		res: Response
 	): Promise<Response> {
 		console.log('[UPDATE]');
-		// TODO: validate data
 		const token = AuthUtils.extractBearerToken(req);
-		if (!token) return ResponseUtils.error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
-		
-		try {
-			const payload = jwtService.verifyAccessToken(token);
-			if (!payload?.sub) return ResponseUtils.error(res,
-				{error: 'Invalid or expired access token'},
+		if (!token) {
+			return ResponseUtils.error(res,
+				{error: 'Authorization header missing or malformed'},
 				401
 			);
+		}
+		
+		try {
+			const user = await AuthService.getUserFromAccessToken(token);
 			
 			const {
 				email,
 				name
 			} = req.body;
-			
-			// Bouw dynamisch de update-object
-			const data: Record<string, any> = {};
+			const data: Partial<typeof user> = {};
 			if (email) data.email = email;
 			if (name) data.name = name;
 			
-			if (Object.keys(data).length === 0) {
+			if (!user || Object.keys(data).length === 0) {
 				return ResponseUtils.error(res,
 					{error: 'No valid update fields provided'},
 					400
 				);
 			}
 			
-			const user = await userService.findAndUpdateUser(payload.sub,
+			const updated = await userService.findAndUpdateUser(user._id!,
 				data
 			);
-			if (!user) return ResponseUtils.error(res,
+			if (!updated) return ResponseUtils.error(res,
 				{error: 'User not found'},
 				404
 			);
 			
 			return ResponseUtils.success(res,
-				{user: AuthUtils.buildUserResponse(user)}
+				{
+					user: AuthUtils.buildUserResponse(updated)
+				}
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,

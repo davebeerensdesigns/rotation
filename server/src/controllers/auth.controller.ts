@@ -1,7 +1,5 @@
 import {Request, Response} from 'express';
 import {generateNonce} from 'siwe';
-import {getAddressFromMessage, getChainIdFromMessage} from '@reown/appkit-siwe';
-import {createPublicClient, http} from 'viem';
 import {ObjectId} from 'mongodb';
 
 import {User} from '../types/user';
@@ -10,8 +8,7 @@ import {UserService} from '../services/user.service';
 import {ResponseUtils} from '../utils/response.utils';
 import {AuthUtils} from '../utils/auth.utils';
 import {TokenService} from '../services/token.service';
-
-const projectId = process.env.PROJECT_ID;
+import {AuthService} from '../services/auth.service';
 
 // Singleton instance
 const jwtService = JwtUtils.getInstance();
@@ -42,30 +39,19 @@ export default class AuthController {
 				message,
 				signature
 			} = req.body;
-			if (!message) return ResponseUtils.error(res,
-				{error: 'SiweMessage is undefined'},
-				400
-			);
-			
-			const address = getAddressFromMessage(message) as `0x${string}`;
-			const chainId = getChainIdFromMessage(message);
-			
-			const publicClient = createPublicClient({
-				transport: http(`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`)
-			});
-			
-			const isValid = await publicClient.verifyMessage({
-				message,
-				address,
-				signature
-			});
-			
-			if (!isValid) {
+			if (!message || !signature) {
 				return ResponseUtils.error(res,
-					{error: 'Invalid signature'},
+					{error: 'SiweMessage is undefined or incomplete'},
 					400
 				);
 			}
+			
+			const {
+				address,
+				chainId
+			} = await AuthService.verifySiweSignature(message,
+				signature
+			);
 			
 			const user = await userService.findOrCreateUser(address,
 				chainId
@@ -105,29 +91,38 @@ export default class AuthController {
 		res: Response
 	): Promise<Response> {
 		const token = AuthUtils.extractBearerToken(req);
-		if (!token) return ResponseUtils.error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
+		if (!token) {
+			return ResponseUtils.error(res,
+				{
+					error: 'Authorization header missing or malformed'
+				},
+				401
+			);
+		}
 		
 		try {
-			const payload = jwtService.verifyAccessToken(token);
-			if (!payload?.sub) return ResponseUtils.error(res,
-				{error: 'Invalid or expired access token'},
-				401
-			);
+			const user = await AuthService.getUserFromAccessToken(token);
 			
-			const user = await userService.findUserById(payload.sub);
-			if (!user) return ResponseUtils.error(res,
-				{error: 'User not found'},
-				404
-			);
+			if (!user) {
+				return ResponseUtils.error(res,
+					{
+						error: 'Invalid or expired access token'
+					},
+					401
+				);
+			}
 			
-			return ResponseUtils.success(res);
+			return ResponseUtils.success(res,
+				{
+					user: AuthUtils.buildUserResponse(user)
+				}
+			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
-				{error: err.message},
-				401
+				{
+					error: err.message
+				},
+				500
 			);
 		}
 	}
@@ -137,40 +132,20 @@ export default class AuthController {
 		res: Response
 	): Promise<Response> {
 		const token = AuthUtils.extractBearerToken(req);
-		if (!token) return ResponseUtils.error(res,
-			{error: 'Missing refreshToken'},
-			400
-		);
+		if (!token) {
+			return ResponseUtils.error(res,
+				{
+					error: 'Missing refreshToken'
+				},
+				400
+			);
+		}
 		
 		try {
-			const payload = jwtService.verifyRefreshToken(token);
-			if (!payload?.sub || !ObjectId.isValid(payload.sub)) {
-				return ResponseUtils.error(res,
-					{error: 'Invalid or expired refresh token'},
-					401
-				);
-			}
-			
-			const userId = new ObjectId(payload.sub);
-			const isValid = await tokenService.verifyStoredRefreshToken(userId,
-				token
-			);
-			if (!isValid) return ResponseUtils.error(res,
-				{error: 'Token mismatch or revoked'},
-				401
-			);
-			
-			const user = await userService.findUserById(userId);
-			if (!user || !user._id) return ResponseUtils.error(res,
-				{error: 'User not found'},
-				404
-			);
-			
-			const {accessToken} = jwtService.generateTokens(user._id.toString(),
-				user.role
-			);
-			const decodedAccess = jwtService.decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess?.exp ?? null;
+			const {
+				accessToken,
+				accessTokenExpires
+			} = await AuthService.refreshAccessToken(token);
 			
 			return ResponseUtils.success(res,
 				{
@@ -180,8 +155,10 @@ export default class AuthController {
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
-				{error: err.message},
-				500
+				{
+					error: err.message
+				},
+				401
 			);
 		}
 	}
@@ -191,29 +168,24 @@ export default class AuthController {
 		res: Response
 	): Promise<Response> {
 		const token = AuthUtils.extractBearerToken(req);
-		if (!token) return ResponseUtils.error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
+		if (!token) {
+			return ResponseUtils.error(res,
+				{
+					error: 'Authorization header missing or malformed'
+				},
+				401
+			);
+		}
 		
 		try {
-			const decoded = jwtService.verifyAccessToken(token);
-			const userId = decoded?.sub;
-			if (!userId || !ObjectId.isValid(userId)) {
-				return ResponseUtils.error(res,
-					{error: 'Invalid or missing userId in token'},
-					401
-				);
-			}
-			
-			await tokenService.deleteRefreshToken(new ObjectId(userId));
+			await AuthService.logoutUser(token);
 			return ResponseUtils.success(res,
 				{success: true}
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
 				{error: err.message},
-				500
+				401
 			);
 		}
 	}
