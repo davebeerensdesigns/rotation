@@ -15,18 +15,15 @@ export default class UserController {
 	): Promise<Response> {
 		
 		try {
-			
 			const user = await RequestUtils.getAuthenticatedUser(req);
 			if (!user) return ResponseUtils.error(res,
 				{error: 'Unauthorized'},
 				401
 			);
 			
-			const userResponse = UserMapper.toResponse(user);
-			
 			return ResponseUtils.success(res,
 				{
-					user: userResponse
+					user: UserMapper.toResponse(user)
 				}
 			);
 		} catch (err: any) {

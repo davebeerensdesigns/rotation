@@ -103,24 +103,21 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
-		
 		try {
 			const user = await RequestUtils.getAuthenticatedUser(req);
-			if (!user) return ResponseUtils.error(res,
-				{error: 'Unauthorized'},
-				401
-			);
+			if (!user) {
+				return ResponseUtils.error(res,
+					{error: 'Unauthorized'},
+					401
+				);
+			}
 			
 			return ResponseUtils.success(res,
-				{
-					user: UserMapper.toResponse(user)
-				}
+				{valid: true}
 			);
 		} catch (err: any) {
 			return ResponseUtils.error(res,
-				{
-					error: err.message
-				},
+				{error: err.message},
 				500
 			);
 		}
