@@ -7,10 +7,9 @@ import {
 } from '@reown/appkit-siwe';
 import {WagmiAdapter} from '@reown/appkit-adapter-wagmi';
 import {getSession, signIn, signOut} from 'next-auth/react';
-
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import {AppKitNetwork, arbitrum, mainnet, optimism, ham} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
-import {Session} from 'next-auth';
 
 // ---------- CONFIG CONSTANTS ----------
 
@@ -27,7 +26,7 @@ if (!projectId) throw new Error('Project ID is not defined');
 export const metadata = {
 	name: 'Appkit SIWE Example',
 	description: 'Appkit Siwe Example - Next.js',
-	url: process.env.DOMAIN || 'http://localhost:3000', // must match your frontend domain
+	url: process.env.DOMAIN || 'http://10.0.1.50:3000', // must match your frontend domain
 	icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
@@ -110,7 +109,7 @@ export const siweConfig = createSIWEConfig({
 	 * @returns {Promise<string>} The nonce string.
 	 */
 	getNonce: async () => {
-		const res = await fetch('http://localhost:3001/api/auth/nonce',
+		const res = await fetch('http://10.0.1.50:3001/api/auth/nonce',
 			{
 				method: 'GET',
 				credentials: 'include'
@@ -158,13 +157,19 @@ export const siweConfig = createSIWEConfig({
 		message,
 		signature
 	}: SIWEVerifyMessageArgs): Promise<boolean> => {
+		
 		try {
+			const fp = await FingerprintJS.load();
+			const {visitorId} = await fp.get();
+			
 			const success = await signIn('credentials',
 				{
 					message,
 					redirect: false,
 					signature,
-					redirectTo: '/profile'
+					redirectTo: '/profile',
+					userAgent: navigator.userAgent,
+					visitorId
 				}
 			);
 			return Boolean(success?.ok);
@@ -194,7 +199,7 @@ export const siweConfig = createSIWEConfig({
 		try {
 			const session = await getSession();
 			if (session?.user.accessToken) {
-				await fetch('http://localhost:3001/api/auth/logout',
+				await fetch('http://10.0.1.50:3001/api/auth/logout',
 					{
 						method: 'POST',
 						headers: {

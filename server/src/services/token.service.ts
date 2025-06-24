@@ -20,27 +20,60 @@ export class TokenService {
 	
 	public async storeRefreshToken(
 		userId: ObjectId,
-		refreshToken: string
+		refreshToken: string,
+		userAgent: string,
+		visitorId: string,
+		sessionId: string
 	): Promise<void> {
 		const tokens = this.getCollection();
 		await tokens.updateOne(
-			{userId},
-			{$set: {refreshToken}},
+			{
+				userId,
+				visitorId
+			},
+			{
+				$set: {
+					refreshToken,
+					userAgent,
+					sessionId,
+					createdAt: new Date()
+				}
+			},
 			{upsert: true}
 		);
 	}
 	
 	public async verifyStoredRefreshToken(
 		userId: ObjectId,
-		token: string
+		token: string,
+		visitorId: string
 	): Promise<boolean> {
 		const tokens = this.getCollection();
-		const saved = await tokens.findOne({userId});
+		const saved = await tokens.findOne({
+			userId,
+			visitorId
+		});
+		
 		return !!saved && saved.refreshToken === token;
 	}
 	
-	public async deleteRefreshToken(userId: ObjectId): Promise<void> {
+	public async deleteRefreshToken(
+		userId: ObjectId,
+		sessionId: string
+	): Promise<void> {
 		const tokens = this.getCollection();
-		await tokens.deleteOne({userId});
+		await tokens.deleteOne({
+			userId,
+			sessionId
+		});
+	}
+	
+	public async findSessionsByUserId(userId: ObjectId) {
+		const tokens = this.getCollection();
+		
+		return tokens.find({
+				userId
+			})
+			.toArray();
 	}
 }

@@ -19,6 +19,9 @@ class AuthRoutes {
 		this.router.get('/session',
 			this.controller.session
 		);
+		this.router.get('/session/all',
+			this.controller.sessionAll
+		);
 		this.router.post('/refresh',
 			this.controller.refresh
 		);

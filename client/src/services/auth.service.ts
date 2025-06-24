@@ -2,10 +2,14 @@ import {User} from 'next-auth';
 
 export async function verifySIWEAuth({
 	message,
-	signature
+	signature,
+	userAgent,
+	visitorId
 }: {
 	message: string;
 	signature: string;
+	userAgent: string;
+	visitorId: string;
 }): Promise<User | null> {
 	try {
 		if (!message) {
@@ -13,7 +17,7 @@ export async function verifySIWEAuth({
 		}
 		// TODO: use ua-parser-js to send fingerprint data and store multiple session if user logs in on different devices
 		// TODO: maybe save accesstoken to verify in backend if session is still valid
-		const res = await fetch('http://localhost:3001/api/auth/verify',
+		const res = await fetch('http://10.0.1.50:3001/api/auth/verify',
 			{
 				method: 'POST',
 				headers: {
@@ -24,7 +28,9 @@ export async function verifySIWEAuth({
 				credentials: 'include',
 				body: JSON.stringify({
 					message,
-					signature
+					signature,
+					userAgent,
+					visitorId
 				})
 			}
 		);
@@ -60,6 +66,35 @@ export async function verifySIWEAuth({
 		} satisfies User;
 	} catch (err) {
 		console.error('[verifySIWEAuth] Exception:',
+			err
+		);
+		return null;
+	}
+}
+
+export async function fetchUserSessionsData(): Promise<any | null> {
+	try {
+		const res = await fetch('/api/auth/all-sessions',
+			{
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}
+		);
+		
+		if (!res.ok) {
+			console.error('[SERVICE] Failed to fetch user sessions',
+				res.status
+			);
+			return null;
+		}
+		
+		const {data} = await res.json();
+		console.log(data);
+		return data;
+	} catch (err) {
+		console.error('[SERVICE] Error fetching user sessions',
 			err
 		);
 		return null;

@@ -11,6 +11,7 @@ import {AuthService} from '../services/auth.service';
 import {userCreateSchema} from '../validators/user.schema';
 import {UserMapper} from '../mappers/user.mapper';
 import {RequestUtils} from '../utils/request.utils';
+import {ObjectId} from 'mongodb';
 
 const jwtService = JwtUtils.getInstance();
 const userService = UserService.getInstance();
@@ -32,15 +33,26 @@ export default class AuthController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
+		
 		try {
 			const {
 				message,
-				signature
+				signature,
+				userAgent,
+				visitorId
 			} = req.body;
 			if (!message || !signature) {
 				return ResponseUtils.error(res,
 					{
 						error: 'SiweMessage is undefined or incomplete'
+					},
+					400
+				);
+			}
+			if (!userAgent || !visitorId) {
+				return ResponseUtils.error(res,
+					{
+						error: 'Missing userAgent or visitorId'
 					},
 					400
 				);
@@ -70,18 +82,25 @@ export default class AuthController {
 			const user = await userService.findOrCreateUser(address,
 				chainId
 			);
-			
+			const sessionId = new ObjectId().toString();
 			const {
 				accessToken,
 				refreshToken
-			} = jwtService.generateTokens(user._id.toString(),
-				user.role
+			} = jwtService.generateTokens(
+				user._id.toString(),
+				user.role,
+				sessionId,
+				visitorId
 			);
 			const decodedAccess = jwtService.decodeToken(accessToken);
 			const accessTokenExpires = decodedAccess?.exp;
 			
-			await tokenService.storeRefreshToken(user._id,
-				refreshToken
+			await tokenService.storeRefreshToken(
+				user._id,
+				refreshToken,
+				userAgent,
+				visitorId,
+				sessionId
 			);
 			
 			return ResponseUtils.success(res,
@@ -187,5 +206,26 @@ export default class AuthController {
 				401
 			);
 		}
+	}
+	
+	async sessionAll(
+		req: Request,
+		res: Response
+	): Promise<Response> {
+		const token = AuthUtils.extractBearerToken(req);
+		if (!token) {
+			return ResponseUtils.error(res,
+				{
+					error: 'Authorization header missing or malformed'
+				},
+				401
+			);
+		}
+		const sessions = await AuthService.getUserSessionsFromAccessToken(token);
+		
+		return ResponseUtils.success(res,
+			sessions,
+			200
+		);
 	}
 }

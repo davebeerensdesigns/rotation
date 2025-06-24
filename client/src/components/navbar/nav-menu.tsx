@@ -23,12 +23,18 @@ export function NavMenu(props: NavigationMenuProps) {
 						<Link href="/">Home</Link>
 					</NavigationMenuLink>
 				</NavigationMenuItem>
-				{isConnected && (
-					<NavigationMenuItem>
-						<NavigationMenuLink asChild>
-							<Link href="/profile">Profile</Link>
-						</NavigationMenuLink>
-					</NavigationMenuItem>
+				{isConnected && (<>
+						<NavigationMenuItem>
+							<NavigationMenuLink asChild>
+								<Link href="/profile">Profile</Link>
+							</NavigationMenuLink>
+						</NavigationMenuItem>
+						<NavigationMenuItem>
+							<NavigationMenuLink asChild>
+								<Link href="/profile/settings">Settings</Link>
+							</NavigationMenuLink>
+						</NavigationMenuItem>
+					</>
 				)}
 			</NavigationMenuList>
 		</NavigationMenu>

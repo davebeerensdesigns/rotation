@@ -4,7 +4,7 @@ import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/she
 import {shortenAddress} from '@/lib/utils';
 import {JSX, useState} from 'react';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
-import {LogOut, Pencil, User} from 'lucide-react';
+import {LogOut, Pencil, Settings, User} from 'lucide-react';
 import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
 import {signOut, useSession} from 'next-auth/react';
@@ -64,6 +64,11 @@ export const WalletSheet = (): JSX.Element => {
 						<Button variant="ghost" className="w-full justify-start text-sm" asChild>
 							<Link href="/profile" onClick={() => setOpen(false)}>
 								<User className="h-4 w-4 mr-2"/> View Profile
+							</Link>
+						</Button>
+						<Button variant="ghost" className="w-full justify-start text-sm" asChild>
+							<Link href="/profile/settings" onClick={() => setOpen(false)}>
+								<Settings className="h-4 w-4 mr-2"/> Settings
 							</Link>
 						</Button>
 						<Button variant="ghost" onClick={handleLogout}

@@ -66,7 +66,10 @@ export default function FetchUserProfile(): JSX.Element {
 	return (
 		<>
 			<Navbar/>
-			<main className="pt-16 xs:pt-20 sm:pt-24">
+			<main className="pt-16 xs:pt-20 sm:pt-24 max-w-screen-xl mx-auto">
+				<h1 className="my-6 text-3xl sm:text-xl md:text-2xl md:leading-[1.2] font-bold">
+					Profile
+				</h1>
 				{status === 'loading' || loading ? (
 					<p>Loading profile...</p>
 				) : status === 'unauthenticated' || !session ? (
@@ -97,6 +100,7 @@ export default function FetchUserProfile(): JSX.Element {
 						</Button>
 					</>
 				)}
+			
 			</main>
 		</>
 	);

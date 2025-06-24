@@ -19,7 +19,7 @@ export default class Server {
 	
 	private config(): void {
 		const corsOptions = {
-			origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+			origin: process.env.CORS_ORIGIN || 'http://10.0.1.50:3000/',
 			credentials: true
 		};
 		
@@ -35,7 +35,7 @@ export default class Server {
 		
 		this.app
 			.listen(port,
-				'localhost',
+				'10.0.1.50',
 				() => {
 					console.log(`Server running on port ${port}`);
 				}

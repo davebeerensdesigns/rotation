@@ -39,11 +39,15 @@ export class JwtUtils {
 	
 	public generateTokens(
 		userId: string,
-		role: string
+		role: string,
+		sessionId: string,
+		visitorId: string
 	): { accessToken: string; refreshToken: string } {
 		const accessToken = jwt.sign({
 				sub: userId,
-				role
+				role,
+				sessionId,
+				visitorId
 			},
 			this.jwtSecret,
 			{
@@ -53,7 +57,9 @@ export class JwtUtils {
 		
 		const refreshToken = jwt.sign({
 				sub: userId,
-				role
+				role,
+				sessionId,
+				visitorId
 			},
 			this.refreshSecret,
 			{

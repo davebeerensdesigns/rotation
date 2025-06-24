@@ -54,17 +54,26 @@ export class AuthService {
 	
 	static async refreshAccessToken(refreshToken: string): Promise<{
 		accessToken: string;
-		accessTokenExpires: number
+		accessTokenExpires: number;
 	}> {
 		const payload = jwtService.verifyRefreshToken(refreshToken);
-		if (!payload?.sub || !ObjectId.isValid(payload.sub)) {
+		
+		if (
+			!payload?.sub ||
+			!ObjectId.isValid(payload.sub)
+		) {
 			throw new Error('Invalid or expired refresh token');
 		}
 		
 		const userId = new ObjectId(payload.sub);
-		const isValid = await tokenService.verifyStoredRefreshToken(userId,
-			refreshToken
+		const sessionId = payload.sessionId;
+		
+		const isValid = await tokenService.verifyStoredRefreshToken(
+			userId,
+			refreshToken,
+			payload.visitorId
 		);
+		
 		if (!isValid) {
 			throw new Error('Token mismatch or revoked');
 		}
@@ -74,9 +83,13 @@ export class AuthService {
 			throw new Error('User not found');
 		}
 		
-		const {accessToken} = jwtService.generateTokens(user._id.toString(),
-			user.role
+		const {accessToken} = jwtService.generateTokens(
+			user._id.toString(),
+			user.role,
+			sessionId,
+			payload.visitorId
 		);
+		
 		const decoded = jwtService.decodeToken(accessToken);
 		if (!decoded?.exp) {
 			throw new Error('Access token is missing exp claim');
@@ -96,6 +109,24 @@ export class AuthService {
 		}
 		
 		const userId = new ObjectId(decoded.sub);
-		await tokenService.deleteRefreshToken(userId);
+		const sessionId = decoded.sessionId;
+		await tokenService.deleteRefreshToken(userId,
+			sessionId
+		);
+	}
+	
+	static async getUserSessionsFromAccessToken(token: string): Promise<any | null> {
+		const decoded = jwtService.verifyAccessToken(token);
+		
+		if (typeof decoded?.sub !== 'string' || !ObjectId.isValid(decoded.sub)) {
+			throw new Error('Invalid or missing userId in token');
+		}
+		
+		const userId = new ObjectId(decoded.sub);
+		const sessions = await tokenService.findSessionsByUserId(userId);
+		
+		if (!sessions) throw new Error('No sessions found found');
+		
+		return sessions;
 	}
 }

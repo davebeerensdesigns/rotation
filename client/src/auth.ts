@@ -84,7 +84,7 @@ export const {
 			// Access token expired — try refresh
 			try {
 				console.log('[EXPIRED] sending refresh request');
-				const response = await fetch('http://localhost:3001/api/auth/refresh',
+				const response = await fetch('http://10.0.1.50:3001/api/auth/refresh',
 					{
 						method: 'POST',
 						headers: {
