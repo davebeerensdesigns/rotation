@@ -1,7 +1,10 @@
 import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
 import MongoDatabase from '../db';
 import {UserUpdateDto} from '../dtos/user.dto';
-import {User} from '../types/user.entity';
+import {UserEntity} from '../models/user.entity';
+import {SessionUtils} from '../utils/session.utils';
+
+const jwtService = SessionUtils.getInstance();
 
 export class UserService {
 	private static instance: UserService;
@@ -23,10 +26,10 @@ export class UserService {
 	public async findOrCreateUser(
 		address: string,
 		chainId: string
-	): Promise<WithId<User>> {
+	): Promise<WithId<UserEntity>> {
 		const users = this.getCollection();
 		
-		const update: UpdateFilter<User> = {
+		const update: UpdateFilter<UserEntity> = {
 			$set: {chainId},
 			$setOnInsert: {
 				role: 'viewer',
@@ -54,25 +57,50 @@ export class UserService {
 		return result;
 	}
 	
-	public async findUserById(
-		userId: string | ObjectId
-	): Promise<WithId<User> | null> {
+	public async getUserFromAccessToken(accessToken: string): Promise<UserEntity | null> {
 		const users = this.getCollection();
-		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
-		return users.findOne({_id: id});
+		const payload = jwtService.verifyAccessToken(accessToken);
+		if (
+			!payload?.sub ||
+			!payload.sessionId ||
+			!payload.visitorId ||
+			!ObjectId.isValid(payload.sub)
+		) {
+			throw new Error('Invalid or expired refresh token');
+		}
+		
+		const userId = new ObjectId(payload.sub);
+		
+		return await users.findOne({userId});
+	}
+	
+	public async getUserByUserId(userId: ObjectId): Promise<UserEntity | null> {
+		const users = this.getCollection();
+		
+		return await users.findOne({_id: userId});
 	}
 	
 	public async findAndUpdateUser(
-		userId: string | ObjectId,
+		accessToken: string,
 		data: UserUpdateDto
-	): Promise<WithId<User> | null> {
+	): Promise<WithId<UserEntity> | null> {
 		const users = this.getCollection();
-		const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
+		const payload = jwtService.verifyAccessToken(accessToken);
+		if (
+			!payload?.sub ||
+			!payload.sessionId ||
+			!payload.visitorId ||
+			!ObjectId.isValid(payload.sub)
+		) {
+			throw new Error('Invalid or expired refresh token');
+		}
 		
-		const update: UpdateFilter<User> = {$set: data};
+		const userId = new ObjectId(payload.sub);
+		
+		const update: UpdateFilter<UserEntity> = {$set: data};
 		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
 		
-		return await users.findOneAndUpdate({_id: id},
+		return await users.findOneAndUpdate({_id: userId},
 			update,
 			options
 		);

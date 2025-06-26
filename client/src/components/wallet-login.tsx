@@ -3,7 +3,7 @@
 import {JSX} from 'react';
 import {WalletSheet} from '@/components/navbar/wallet-sheet';
 import {NetworkSelectButton} from '@/components/network-select-button';
-import {useAppKitAccount} from '@reown/appkit/react';
+import {useSession} from 'next-auth/react';
 
 /**
  * WalletLogin component that renders the AppKit Web Component button.
@@ -14,8 +14,8 @@ import {useAppKitAccount} from '@reown/appkit/react';
  * @returns {JSX.Element} A React element containing the AppKit login button.
  */
 export const WalletLogin = (): JSX.Element => {
-	const {isConnected} = useAppKitAccount();
-	if (isConnected) {
+	const {status} = useSession();
+	if (status === 'authenticated') {
 		return (
 			<>
 				<NetworkSelectButton/>

@@ -1,6 +1,6 @@
 import type {NextAuthConfig, User} from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import {verifySIWEAuth} from '@/services/auth.service';
+import {verifySIWEAuth} from '@/services/session.service';
 
 /**
  * Environment variable required to configure WalletConnect RPC.

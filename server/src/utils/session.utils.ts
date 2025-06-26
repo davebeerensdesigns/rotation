@@ -4,9 +4,10 @@ dotenv.config();
 
 import jwt from 'jsonwebtoken';
 import {JwtPayload} from '../types/jwt';
+import {Request} from 'express';
 
-export class JwtUtils {
-	private static instance: JwtUtils;
+export class SessionUtils {
+	private static instance: SessionUtils;
 	
 	private readonly jwtSecret: string;
 	private readonly refreshSecret: string;
@@ -16,10 +17,10 @@ export class JwtUtils {
 	private constructor() {
 		this.jwtSecret = process.env.JWT_SECRET || '';
 		this.refreshSecret = process.env.REFRESH_SECRET || '';
-		this.accessTokenExpiry = parseInt(process.env.ACCESS_TOKEN_EXPIRY || '3600',
+		this.accessTokenExpiry = parseInt(process.env.ACCESS_TOKEN_EXPIRY || '600',
 			10
 		);
-		this.refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY || '604800',
+		this.refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY || '86400',
 			10
 		);
 		
@@ -30,11 +31,17 @@ export class JwtUtils {
 	}
 	
 	// ✅ Singleton accessor
-	public static getInstance(): JwtUtils {
-		if (!JwtUtils.instance) {
-			JwtUtils.instance = new JwtUtils();
+	public static getInstance(): SessionUtils {
+		if (!SessionUtils.instance) {
+			SessionUtils.instance = new SessionUtils();
 		}
-		return JwtUtils.instance;
+		return SessionUtils.instance;
+	}
+	
+	public extractBearerToken(req: Request): string | null {
+		const authHeader = req.headers.authorization;
+		if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+		return authHeader.split(' ')[1];
 	}
 	
 	public generateTokens(
@@ -104,4 +111,5 @@ export class JwtUtils {
 			return null;
 		}
 	}
+	
 }

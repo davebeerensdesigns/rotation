@@ -26,7 +26,7 @@ if (!projectId) throw new Error('Project ID is not defined');
 export const metadata = {
 	name: 'Appkit SIWE Example',
 	description: 'Appkit Siwe Example - Next.js',
-	url: process.env.DOMAIN || 'http://10.0.1.50:3000', // must match your frontend domain
+	url: process.env.DOMAIN || 'http://localhost:3000', // must match your frontend domain
 	icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
@@ -109,7 +109,7 @@ export const siweConfig = createSIWEConfig({
 	 * @returns {Promise<string>} The nonce string.
 	 */
 	getNonce: async () => {
-		const res = await fetch('http://10.0.1.50:3001/api/auth/nonce',
+		const res = await fetch('http://localhost:3001/api/session/nonce',
 			{
 				method: 'GET',
 				credentials: 'include'
@@ -134,9 +134,19 @@ export const siweConfig = createSIWEConfig({
 		}
 		
 		if (session.error === 'RefreshAccessTokenError') {
+			if (session?.user.accessToken) {
+				await fetch('http://localhost:3001/api/session/logout',
+					{
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${session?.user.accessToken}`,
+							'Content-Type': 'application/json'
+						}
+					}
+				);
+			}
 			await signOut({
-				redirect: true,
-				redirectTo: '/'
+				redirect: false
 			});
 			return null;
 		}
@@ -167,7 +177,6 @@ export const siweConfig = createSIWEConfig({
 					message,
 					redirect: false,
 					signature,
-					redirectTo: '/profile',
 					userAgent: navigator.userAgent,
 					visitorId
 				}
@@ -199,7 +208,7 @@ export const siweConfig = createSIWEConfig({
 		try {
 			const session = await getSession();
 			if (session?.user.accessToken) {
-				await fetch('http://10.0.1.50:3001/api/auth/logout',
+				await fetch('http://localhost:3001/api/session/logout',
 					{
 						method: 'POST',
 						headers: {

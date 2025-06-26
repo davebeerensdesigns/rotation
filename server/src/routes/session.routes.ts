@@ -1,26 +1,26 @@
 import {Router} from 'express';
-import AuthController from '../controllers/auth.controller';
+import SessionController from '../controllers/session.controller';
 
-class AuthRoutes {
+class SessionRoutes {
 	public router = Router();
-	private controller = new AuthController();
+	private controller = new SessionController();
 	
 	constructor() {
 		this.initializeRoutes();
 	}
 	
 	private initializeRoutes(): void {
+		this.router.get('/',
+			this.controller.session
+		);
+		this.router.get('/all',
+			this.controller.sessionAll
+		);
 		this.router.get('/nonce',
 			this.controller.nonce
 		);
 		this.router.post('/verify',
 			this.controller.verify
-		);
-		this.router.get('/session',
-			this.controller.session
-		);
-		this.router.get('/session/all',
-			this.controller.sessionAll
 		);
 		this.router.post('/refresh',
 			this.controller.refresh
@@ -31,4 +31,4 @@ class AuthRoutes {
 	}
 }
 
-export default new AuthRoutes().router;
+export default new SessionRoutes().router;

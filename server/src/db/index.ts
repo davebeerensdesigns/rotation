@@ -1,15 +1,15 @@
 import {MongoClient, Collection} from 'mongodb';
-import {RefreshToken} from '../types/refresh-token';
+import {SessionEntity} from '../models/session.entity';
 import {DB_NAME, MONGODB_URI} from './db.config';
-import {User} from '../types/user.entity';
+import {UserEntity} from '../models/user.entity';
 
 export default class MongoDatabase {
 	private static instance: MongoDatabase;
 	private client: MongoClient;
 	private isConnected: boolean = false;
 	
-	private usersCollection?: Collection<User>;
-	private tokensCollection?: Collection<RefreshToken>;
+	private usersCollection?: Collection<UserEntity>;
+	private sessionsCollection?: Collection<SessionEntity>;
 	
 	private constructor() {
 		if (!MONGODB_URI || !DB_NAME) {
@@ -31,24 +31,39 @@ export default class MongoDatabase {
 		await this.client.connect();
 		const db = this.client.db(DB_NAME);
 		
-		this.usersCollection = db.collection<User>('users');
-		this.tokensCollection = db.collection<RefreshToken>('refreshTokens');
+		this.usersCollection = db.collection<UserEntity>('users');
+		this.sessionsCollection = db.collection<SessionEntity>('sessions');
+		
+		// Unique session identification
+		await this.sessionsCollection.createIndex(
+			{
+				userId: 1,
+				sessionId: 1,
+				visitorId: 1
+			},
+			{unique: true}
+		);
+		
+		// Lookups
+		await this.sessionsCollection.createIndex({userId: 1});
+		await this.sessionsCollection.createIndex({refreshToken: 1});
+		await this.sessionsCollection.createIndex({createdAt: 1});
 		
 		this.isConnected = true;
 		console.log('MongoDB connected and collections initialized');
 	}
 	
-	public getUsersCollection(): Collection<User> {
+	public getUsersCollection(): Collection<UserEntity> {
 		if (!this.usersCollection) {
 			throw new Error('MongoDatabase not connected: usersCollection is undefined');
 		}
 		return this.usersCollection;
 	}
 	
-	public getTokensCollection(): Collection<RefreshToken> {
-		if (!this.tokensCollection) {
-			throw new Error('MongoDatabase not connected: tokensCollection is undefined');
+	public getTokensCollection(): Collection<SessionEntity> {
+		if (!this.sessionsCollection) {
+			throw new Error('MongoDatabase not connected: sessionsCollection is undefined');
 		}
-		return this.tokensCollection;
+		return this.sessionsCollection;
 	}
 }

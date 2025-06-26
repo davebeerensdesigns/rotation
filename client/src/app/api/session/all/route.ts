@@ -11,7 +11,7 @@ export async function GET() {
 	}
 	
 	try {
-		const backendRes = await fetch('http://10.0.1.50:3001/api/auth/session/all',
+		const backendRes = await fetch('http://localhost:3001/api/session/all',
 			{
 				method: 'GET',
 				headers: {

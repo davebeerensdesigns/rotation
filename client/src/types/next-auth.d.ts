@@ -1,9 +1,9 @@
 // src/types/next-auth.d.ts
-import {DefaultSession, DefaultUser, User} from 'next-auth';
+import {DefaultSession, DefaultUser} from 'next-auth';
 import type {SIWESession} from '@reown/appkit-siwe';
 
 declare module 'next-auth' {
-	// 1) Breid Session uit met SIWESession én jouw extra velden onder user
+	// 1) Breid SessionEntity uit met SIWESession én jouw extra velden onder user
 	interface Session extends SIWESession {
 		error?: 'RefreshAccessTokenError';
 		user: {

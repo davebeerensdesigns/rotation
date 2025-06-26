@@ -83,8 +83,7 @@ export const {
 			
 			// Access token expired — try refresh
 			try {
-				console.log('[EXPIRED] sending refresh request');
-				const response = await fetch('http://10.0.1.50:3001/api/auth/refresh',
+				const response = await fetch('http://localhost:3001/api/session/refresh',
 					{
 						method: 'POST',
 						headers: {
@@ -94,29 +93,25 @@ export const {
 					}
 				);
 				
-				const {data: tokensOrError} = await response.json();
+				const json = await response.json();
 				
-				if (!response.ok) {
-					token.error = 'RefreshAccessTokenError';
-					return token;
+				if (json.status !== 'success') {
+					return {
+						...token,
+						error: 'RefreshAccessTokenError'
+					};
 				}
-				
-				const newTokens = tokensOrError as {
-					accessToken: string;
-					accessTokenExpires: number;
-				};
-				
-				console.log('[EXPIRED] tokens successfully refreshed');
 				
 				return {
 					...token,
-					accessTokenExpires: newTokens.accessTokenExpires,
-					accessToken: newTokens.accessToken
+					accessTokenExpires: json.data.accessTokenExpires,
+					accessToken: json.data.accessToken
 				};
 			} catch (error) {
-				console.error('[EXPIRED] Error refreshing tokens');
-				token.error = 'RefreshAccessTokenError';
-				return token;
+				return {
+					...token,
+					error: 'RefreshAccessTokenError'
+				};
 			}
 		},
 		
@@ -132,6 +127,7 @@ export const {
 			session,
 			token
 		}: { session: Session; token: JWT }): Promise<Session> {
+			
 			if (!token.sub) {
 				return session;
 			}

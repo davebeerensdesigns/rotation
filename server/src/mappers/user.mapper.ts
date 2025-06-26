@@ -1,8 +1,8 @@
-import {User} from '../types/user.entity';
+import {UserEntity} from '../models/user.entity';
 import {UserResponseDto} from '../dtos/user.dto';
 
 export class UserMapper {
-	static toResponse(user: User): UserResponseDto {
+	static toResponse(user: UserEntity): UserResponseDto {
 		return {
 			userId: user._id?.toString() || '',
 			address: user.address,

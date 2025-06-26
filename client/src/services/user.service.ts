@@ -67,7 +67,6 @@ export async function updateUserProfile(
 			}
 		});
 		
-		console.log('[updateUserProfile] User updated in DB and session');
 		return true;
 	} catch (err) {
 		console.error('[updateUserProfile] Error:',

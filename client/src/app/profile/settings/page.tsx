@@ -4,20 +4,22 @@ import {JSX, useEffect, useState} from 'react';
 import {useSession} from 'next-auth/react';
 import {Navbar} from '@/components/navbar';
 import {UAParser} from 'ua-parser-js';
-import {fetchUserSessionsData} from '@/services/auth.service';
+import {fetchUserSessionsData} from '@/services/session.service';
 
 export default function ProfileSettings(): JSX.Element {
 	const {
 		data: session,
 		status
-	} = useSession(); // replaces siweConfig.getSession()
+	} = useSession();
 	const [sessionsData, setSessionsData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
+	
 	useEffect(() => {
 			if (status !== 'authenticated') return;
 			
 			const fetchData = async () => {
 				const sessions = await fetchUserSessionsData();
+				
 				if (sessions) setSessionsData(sessions);
 				setLoading(false);
 			};
@@ -61,7 +63,7 @@ export default function ProfileSettings(): JSX.Element {
 							const parsed = parseUserAgent(session.userAgent);
 							return (
 								<div
-									key={session.visitorId}
+									key={session.sessionId}
 									className="border p-4 rounded-xl shadow-sm bg-white"
 								>
 									<div><strong>Device:</strong> {parsed.device}</div>

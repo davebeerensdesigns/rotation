@@ -4,8 +4,18 @@ type SuccessData = Record<string, any>;
 type ErrorData = { error: string; code?: number; details?: any };
 
 export class ResponseUtils {
+	private static instance: ResponseUtils;
 	
-	static success(
+	private constructor() {}
+	
+	public static getInstance(): ResponseUtils {
+		if (!ResponseUtils.instance) {
+			ResponseUtils.instance = new ResponseUtils();
+		}
+		return ResponseUtils.instance;
+	}
+	
+	public success(
 		res: Response,
 		data: SuccessData = {},
 		status: number = 200
@@ -17,7 +27,7 @@ export class ResponseUtils {
 			});
 	}
 	
-	static error(
+	public error(
 		res: Response,
 		err: ErrorData,
 		status: number = 500

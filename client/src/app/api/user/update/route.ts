@@ -13,7 +13,7 @@ export async function PATCH(req: Request) {
 	const body = await req.json();
 	
 	try {
-		const backendRes = await fetch('http://10.0.1.50:3001/api/user/update',
+		const backendRes = await fetch('http://localhost:3001/api/user/update',
 			{
 				method: 'PATCH',
 				headers: {

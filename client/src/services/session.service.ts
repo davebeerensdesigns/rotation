@@ -17,7 +17,7 @@ export async function verifySIWEAuth({
 		}
 		// TODO: use ua-parser-js to send fingerprint data and store multiple session if user logs in on different devices
 		// TODO: maybe save accesstoken to verify in backend if session is still valid
-		const res = await fetch('http://10.0.1.50:3001/api/auth/verify',
+		const res = await fetch('http://localhost:3001/api/session/verify',
 			{
 				method: 'POST',
 				headers: {
@@ -34,6 +34,7 @@ export async function verifySIWEAuth({
 				})
 			}
 		);
+		
 		if (!res.ok) {
 			return null;
 		}
@@ -72,9 +73,9 @@ export async function verifySIWEAuth({
 	}
 }
 
-export async function fetchUserSessionsData(): Promise<any | null> {
+export async function fetchUserSessionsData(): Promise<any[] | null> {
 	try {
-		const res = await fetch('/api/auth/all-sessions',
+		const res = await fetch('/api/session/all',
 			{
 				method: 'GET',
 				headers: {
@@ -84,19 +85,17 @@ export async function fetchUserSessionsData(): Promise<any | null> {
 		);
 		
 		if (!res.ok) {
-			console.error('[SERVICE] Failed to fetch user sessions',
-				res.status
-			);
 			return null;
 		}
 		
 		const {data} = await res.json();
-		console.log(data);
+		
+		if (!Array.isArray(data) || data.length === 0) {
+			return null;
+		}
+		
 		return data;
 	} catch (err) {
-		console.error('[SERVICE] Error fetching user sessions',
-			err
-		);
 		return null;
 	}
 }

@@ -1,6 +1,6 @@
 import {ObjectId} from 'mongodb';
 
-export interface User {
+export interface UserEntity {
 	_id?: ObjectId;
 	address: string;
 	chainId: string;
