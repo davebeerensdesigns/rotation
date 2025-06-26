@@ -1,30 +1,23 @@
-import {Request, Response} from 'express';
+import {Response} from 'express';
 
 import {ResponseUtils} from '../utils/response.utils';
 import {UserService} from '../services/user.service';
 import {UserMapper} from '../mappers/user.mapper';
 import {userUpdateSchema} from '../schemas/user.schema';
-import {SessionUtils} from '../utils/session.utils';
+import {AuthRequest} from '../middlewares/access-token.middleware';
+import {ObjectId} from 'mongodb';
 
 const userService = UserService.getInstance();
-const sessionUtils = SessionUtils.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
 export default class UserController {
 	async me(
-		req: Request,
+		req: AuthRequest,
 		res: Response
 	): Promise<Response> {
-		// Take accessToken from bearer header
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{error: 'Missing access token'},
-				401
-			);
-		}
 		
-		const user = await userService.getUserFromAccessToken(accessToken);
+		const userId = new ObjectId(req.auth!.userId);
+		const user = await userService.getUserByUserId(userId);
 		
 		if (!user) {
 			return responseUtils.error(res,
@@ -43,17 +36,11 @@ export default class UserController {
 	}
 	
 	async update(
-		req: Request,
+		req: AuthRequest,
 		res: Response
 	): Promise<Response> {
-		// Take accessToken from bearer header
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{error: 'Missing access token'},
-				401
-			);
-		}
+		
+		const userId = new ObjectId(req.auth!.userId);
 		
 		const parsed = userUpdateSchema.safeParse(req.body);
 		if (!parsed.success) {
@@ -68,14 +55,14 @@ export default class UserController {
 		
 		const updateData = parsed.data;
 		
-		const updatedUser = await userService.findAndUpdateUser(accessToken,
+		const updatedUser = await userService.findAndUpdateUser(userId,
 			updateData
 		);
 		
 		if (!updatedUser) {
 			return responseUtils.error(res,
 				{
-					error: 'User update failed'
+					error: 'User not found or update failed'
 				},
 				404
 			);

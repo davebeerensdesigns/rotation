@@ -7,7 +7,7 @@ import {UserService} from './user.service';
 import {SessionEntity} from '../models/session.entity';
 
 const projectId = process.env.PROJECT_ID;
-const jwtService = SessionUtils.getInstance();
+const sessionUtils = SessionUtils.getInstance();
 const userService = UserService.getInstance();
 
 export class SessionService {
@@ -58,7 +58,7 @@ export class SessionService {
 		accessTokenExpires: number;
 	}> {
 		const sessions = this.getCollection();
-		const payload = jwtService.verifyRefreshToken(refreshToken);
+		const payload = sessionUtils.verifyRefreshToken(refreshToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
@@ -89,14 +89,14 @@ export class SessionService {
 			throw new Error('User not found');
 		}
 		
-		const {accessToken} = jwtService.generateTokens(
+		const {accessToken} = sessionUtils.generateTokens(
 			user._id.toString(),
 			user.role,
 			sessionId,
 			payload.visitorId
 		);
 		
-		const decoded = jwtService.decodeToken(accessToken);
+		const decoded = sessionUtils.decodeToken(accessToken);
 		if (!decoded?.exp) {
 			throw new Error('Access token is missing exp claim');
 		}
@@ -109,7 +109,7 @@ export class SessionService {
 	
 	public async findExactSession(accessToken: string): Promise<SessionEntity | null> {
 		const sessions = this.getCollection();
-		const payload = jwtService.verifyAccessToken(accessToken);
+		const payload = sessionUtils.verifyAccessToken(accessToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
@@ -131,7 +131,7 @@ export class SessionService {
 	
 	public async logoutUserCurrentSession(accessToken: string): Promise<void> {
 		const sessions = this.getCollection();
-		const payload = jwtService.verifyAccessToken(accessToken);
+		const payload = sessionUtils.verifyAccessToken(accessToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
@@ -157,7 +157,7 @@ export class SessionService {
 		
 		let payload;
 		try {
-			payload = jwtService.verifyAccessToken(accessToken);
+			payload = sessionUtils.verifyAccessToken(accessToken);
 		} catch (err) {
 			console.warn('[JWT] Failed to verify access token:',
 				err
