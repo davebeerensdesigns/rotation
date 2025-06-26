@@ -8,16 +8,16 @@ export async function fetchUserProfileData(): Promise<any | null> {
 				}
 			}
 		);
-		
 		if (!res.ok) {
 			console.error('[SERVICE] Failed to fetch user profile',
-				res.status
+				res
 			);
 			return null;
 		}
 		
 		const {data} = await res.json();
-		return data.user;
+		
+		return data;
 	} catch (err) {
 		console.error('[SERVICE] Error fetching user profile',
 			err
