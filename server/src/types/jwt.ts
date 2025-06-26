@@ -5,4 +5,5 @@ export interface JwtPayload {
 	exp?: number;
 	visitorId: string;
 	sessionId: string;
+	chainId: string;
 }

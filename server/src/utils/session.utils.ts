@@ -48,13 +48,15 @@ export class SessionUtils {
 		userId: string,
 		role: string,
 		sessionId: string,
-		visitorId: string
+		visitorId: string,
+		chainId: string
 	): { accessToken: string; refreshToken: string } {
 		const accessToken = jwt.sign({
 				sub: userId,
 				role,
 				sessionId,
-				visitorId
+				visitorId,
+				chainId
 			},
 			this.jwtSecret,
 			{
@@ -66,7 +68,8 @@ export class SessionUtils {
 				sub: userId,
 				role,
 				sessionId,
-				visitorId
+				visitorId,
+				chainId
 			},
 			this.refreshSecret,
 			{

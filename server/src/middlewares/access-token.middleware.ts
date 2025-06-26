@@ -13,6 +13,7 @@ export interface AuthPayload {
 	visitorId: string;
 	role: string;
 	accessToken: string;
+	chainId: string;
 }
 
 export interface AuthRequest extends Request {
@@ -42,7 +43,9 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 			if (
 				!payload?.sub ||
 				!payload.sessionId ||
-				!payload.visitorId
+				!payload.visitorId ||
+				!payload.role ||
+				!payload.chainId
 			) {
 				return responseUtils.error(res,
 					{error: 'Invalid access token payload'},
@@ -54,12 +57,13 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 			const sessionId = payload.sessionId;
 			const visitorId = payload.visitorId;
 			const role = payload.role;
+			const chainId = payload.chainId;
 			
 			if (checkSessionInDb) {
 				const session = await sessionService.findExactSession(accessToken);
-				if (!session) {
+				if (!session || session.chainId !== payload.chainId) {
 					return responseUtils.error(res,
-						{error: 'Session not found or revoked'},
+						{error: 'Invalid session or chainId mismatch'},
 						401
 					);
 				}
@@ -71,7 +75,8 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 				sessionId,
 				visitorId,
 				role,
-				accessToken
+				accessToken,
+				chainId
 			};
 			
 			next();

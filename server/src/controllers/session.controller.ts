@@ -70,8 +70,7 @@ export default class SessionController {
 			
 			// Parse address and chainId
 			const parsed = userCreateSchema.safeParse({
-				address,
-				chainId
+				address
 			});
 			
 			if (!parsed.success) {
@@ -86,8 +85,7 @@ export default class SessionController {
 			
 			// Find or create the user
 			const user = await userService.findOrCreateUser(
-				address,
-				chainId
+				address
 			);
 			
 			// Create a random sessionId
@@ -101,7 +99,8 @@ export default class SessionController {
 				user._id.toString(),
 				user.role,
 				sessionId,
-				visitorId
+				visitorId,
+				chainId
 			);
 			
 			// Decode accessToken to get token exp
@@ -112,6 +111,7 @@ export default class SessionController {
 			await sessionService.storeSession(
 				user._id,
 				refreshToken,
+				chainId,
 				userAgent,
 				visitorId,
 				sessionId
@@ -122,6 +122,7 @@ export default class SessionController {
 					accessToken,
 					refreshToken,
 					accessTokenExpires,
+					chainId,
 					user: UserMapper.toResponse(user)
 				}
 			);

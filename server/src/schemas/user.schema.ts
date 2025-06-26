@@ -2,8 +2,7 @@ import {z} from 'zod';
 
 export const userCreateSchema = z.object({
 	address: z.string()
-		.startsWith('0x'),
-	chainId: z.string()
+		.startsWith('0x')
 });
 
 export const userUpdateSchema = z.object({
@@ -20,7 +19,6 @@ export const userUpdateSchema = z.object({
 export const userResponseSchema = z.object({
 	userId: z.string(),
 	address: z.string(),
-	chainId: z.string(),
 	role: z.string(),
 	name: z.string(),
 	email: z.string(),

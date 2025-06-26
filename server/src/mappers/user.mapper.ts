@@ -6,7 +6,6 @@ export class UserMapper {
 		return {
 			userId: user._id?.toString() || '',
 			address: user.address,
-			chainId: user.chainId,
 			role: user.role,
 			name: user.name,
 			email: user.email,

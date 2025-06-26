@@ -21,13 +21,11 @@ export class UserService {
 	}
 	
 	public async findOrCreateUser(
-		address: string,
-		chainId: string
+		address: string
 	): Promise<WithId<UserEntity>> {
 		const users = this.getCollection();
 		
 		const update: UpdateFilter<UserEntity> = {
-			$set: {chainId},
 			$setOnInsert: {
 				role: 'viewer',
 				name: 'John',

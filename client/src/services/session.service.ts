@@ -47,19 +47,19 @@ export async function verifySIWEAuth({
 		
 		const {
 			user,
+			chainId,
 			accessToken,
 			refreshToken,
 			accessTokenExpires
 		} = data;
 		
 		return {
-			id: `${user.chainId}:${user.address}`,
 			accessToken,
 			refreshToken,
 			accessTokenExpires,
+			chainId,
 			userId: user.userId,
 			address: user.address,
-			chainId: user.chainId,
 			role: user.role,
 			name: user.name ?? null,
 			email: user.email ?? null,

@@ -32,20 +32,22 @@ export default function FetchUserProfile(): JSX.Element {
 			
 			// Load user data from backend
 			const fetchData = async () => {
-				const {user} = await fetchUserProfileData();
+				const {
+					chainId,
+					user
+				} = await fetchUserProfileData();
 				
-				if (user) setUserBackendData(user);
+				if (user && chainId) setUserBackendData({
+					...user,
+					chainId
+				});
 				setLoading(false);
 			};
 			
 			fetchData();
 			
 			// load user data from session
-			setUserSessionData({
-				...session.user,
-				address: session.address,
-				chainId: session.chainId
-			});
+			setUserSessionData(session.user);
 			setLoading(false);
 		},
 		[status]
@@ -56,12 +58,11 @@ export default function FetchUserProfile(): JSX.Element {
 		
 		await updateUserProfile(update,
 			{
-				email: 'pietje2@piet.com',
-				name: 'Pietje Puk2',
-				picture: 'avatar.jpg'
+				email: 'pietje3@piet.com',
+				name: 'Pietje Puk3',
+				picture: 'avatar2.jpg'
 			}
 		);
-		
 		setUserUpdateLoading(false);
 	};
 	

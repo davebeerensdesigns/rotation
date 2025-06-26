@@ -56,14 +56,14 @@ export const {
 			session?: Session;
 		}): Promise<JWT> {
 			// Initial sign-in: merge user data into token
-			// Initial sign-in: merge user data into token
 			if (trigger === 'update' && session?.user) {
 				token.name = session.user.name ?? token.name ?? null;
 				token.email = session.user.email ?? token.email ?? null;
 				token.picture = session.user.picture ?? token.picture ?? null;
 			}
 			if (user) {
-				token.sub = user.id;
+				token.address = user.address;
+				token.chainId = user.chainId;
 				token.accessTokenExpires = user.accessTokenExpires;
 				token.accessToken = user.accessToken;
 				token.refreshToken = user.refreshToken;
@@ -128,22 +128,15 @@ export const {
 			token
 		}: { session: Session; token: JWT }): Promise<Session> {
 			
-			if (!token.sub) {
-				return session;
-			}
-			
+			const [, chainNumber] = token.chainId.split(':');
+			const parsedChainId = parseInt(chainNumber,
+				10
+			);
 			session.error = token.error;
-			
-			// Parse "did:pkh:eip155:1:0xabc..." structure
-			const [, chainId, address] = token.sub.split(':');
-			if (chainId && address) {
-				session.address = address;
-				session.chainId = parseInt(chainId,
-					10
-				);
-			}
-			
-			session.user.id = token.sub;
+			session.address = token.address;
+			session.chainId = parsedChainId;
+			session.user.address = token.address;
+			session.user.chainId = token.chainId;
 			session.user.accessToken = token.accessToken;
 			session.user.accessTokenExpires = token.accessTokenExpires;
 			session.user.userId = token.userId;

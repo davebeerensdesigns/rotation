@@ -63,7 +63,8 @@ export async function updateUserProfile(
 		await updateFn({
 			user: {
 				email,
-				name
+				name,
+				picture
 			}
 		});
 		

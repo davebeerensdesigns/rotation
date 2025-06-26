@@ -17,6 +17,7 @@ export default class UserController {
 	): Promise<Response> {
 		
 		const userId = new ObjectId(req.auth!.userId);
+		const chainId = req.auth!.chainId;
 		const user = await userService.getUserByUserId(userId);
 		
 		if (!user) {
@@ -30,6 +31,7 @@ export default class UserController {
 		
 		return responseUtils.success(res,
 			{
+				chainId,
 				user: UserMapper.toResponse(user)
 			}
 		);

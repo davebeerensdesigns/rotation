@@ -63,7 +63,8 @@ export class SessionService {
 			!payload?.sub ||
 			!payload.sessionId ||
 			!payload.visitorId ||
-			!ObjectId.isValid(payload.sub)
+			!ObjectId.isValid(payload.sub) ||
+			!payload.chainId
 		) {
 			throw new Error('Invalid or expired refresh token');
 		}
@@ -93,7 +94,8 @@ export class SessionService {
 			user._id.toString(),
 			user.role,
 			sessionId,
-			payload.visitorId
+			payload.visitorId,
+			payload.chainId
 		);
 		
 		const decoded = sessionUtils.decodeToken(accessToken);
@@ -186,6 +188,7 @@ export class SessionService {
 	public async storeSession(
 		userId: ObjectId,
 		refreshToken: string,
+		chainId: string,
 		userAgent: string,
 		visitorId: string,
 		sessionId: string
@@ -203,6 +206,7 @@ export class SessionService {
 					userAgent,
 					sessionId,
 					visitorId,
+					chainId,
 					createdAt: new Date()
 				}
 			},
