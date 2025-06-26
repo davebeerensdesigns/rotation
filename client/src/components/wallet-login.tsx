@@ -14,9 +14,7 @@ import {useSession} from 'next-auth/react';
  * @returns {JSX.Element} A React element containing the AppKit login button.
  */
 export const WalletLogin = (): JSX.Element => {
-	const {
-		status
-	} = useSession();
+	const {status} = useSession();
 	if (status === 'authenticated') {
 		return (
 			<>

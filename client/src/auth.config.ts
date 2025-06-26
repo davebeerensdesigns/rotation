@@ -1,6 +1,6 @@
 import type {NextAuthConfig, User} from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import {verifySIWEAuth} from '@/services/auth.service';
+import {verifySIWEAuth} from '@/services/session.service';
 
 /**
  * Environment variable required to configure WalletConnect RPC.
@@ -34,6 +34,16 @@ export default {
 					label: 'Signature',
 					type: 'text',
 					placeholder: '0x0'
+				},
+				userAgent: {
+					label: 'UserAgent',
+					type: 'text',
+					placeholder: ''
+				},
+				visitorId: {
+					label: 'UserAgent',
+					type: 'text',
+					placeholder: ''
 				}
 			},
 			
@@ -51,7 +61,9 @@ export default {
 			async authorize(credentials): Promise<User | null> {
 				if (
 					typeof credentials?.message !== 'string' ||
-					typeof credentials?.signature !== 'string'
+					typeof credentials?.signature !== 'string' ||
+					typeof credentials?.userAgent !== 'string' ||
+					typeof credentials?.visitorId !== 'string'
 				) {
 					console.error('[Authorize] Invalid credential types');
 					return null;
@@ -59,7 +71,9 @@ export default {
 				
 				return verifySIWEAuth({
 					message: credentials.message,
-					signature: credentials.signature
+					signature: credentials.signature,
+					userAgent: credentials.userAgent,
+					visitorId: credentials.visitorId
 				});
 			}
 		})

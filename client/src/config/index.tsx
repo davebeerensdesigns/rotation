@@ -7,10 +7,9 @@ import {
 } from '@reown/appkit-siwe';
 import {WagmiAdapter} from '@reown/appkit-adapter-wagmi';
 import {getSession, signIn, signOut} from 'next-auth/react';
-
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import {AppKitNetwork, arbitrum, mainnet, optimism, ham} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
-import {Session} from 'next-auth';
 
 // ---------- CONFIG CONSTANTS ----------
 
@@ -110,7 +109,7 @@ export const siweConfig = createSIWEConfig({
 	 * @returns {Promise<string>} The nonce string.
 	 */
 	getNonce: async () => {
-		const res = await fetch('http://localhost:3001/api/auth/nonce',
+		const res = await fetch('http://localhost:3001/api/session/nonce',
 			{
 				method: 'GET',
 				credentials: 'include'
@@ -135,9 +134,19 @@ export const siweConfig = createSIWEConfig({
 		}
 		
 		if (session.error === 'RefreshAccessTokenError') {
+			if (session?.user.accessToken) {
+				await fetch('http://localhost:3001/api/session/logout',
+					{
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${session?.user.accessToken}`,
+							'Content-Type': 'application/json'
+						}
+					}
+				);
+			}
 			await signOut({
-				redirect: true,
-				redirectTo: '/'
+				redirect: false
 			});
 			return null;
 		}
@@ -158,13 +167,18 @@ export const siweConfig = createSIWEConfig({
 		message,
 		signature
 	}: SIWEVerifyMessageArgs): Promise<boolean> => {
+		
 		try {
+			const fp = await FingerprintJS.load();
+			const {visitorId} = await fp.get();
+			
 			const success = await signIn('credentials',
 				{
 					message,
 					redirect: false,
 					signature,
-					redirectTo: '/profile'
+					userAgent: navigator.userAgent,
+					visitorId
 				}
 			);
 			return Boolean(success?.ok);
@@ -194,7 +208,7 @@ export const siweConfig = createSIWEConfig({
 		try {
 			const session = await getSession();
 			if (session?.user.accessToken) {
-				await fetch('http://localhost:3001/api/auth/logout',
+				await fetch('http://localhost:3001/api/session/logout',
 					{
 						method: 'POST',
 						headers: {

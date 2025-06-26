@@ -4,7 +4,7 @@ import {JSX, useEffect, useState} from 'react';
 import {useSession} from 'next-auth/react';
 import {Navbar} from '@/components/navbar';
 import {Button} from '@/components/ui/button';
-import {updateUserProfile} from '@/services/user.service';
+import {fetchUserProfileData, updateUserProfile} from '@/services/user.service';
 import {Loader} from 'lucide-react';
 
 /**
@@ -22,7 +22,8 @@ export default function FetchUserProfile(): JSX.Element {
 		status,
 		update
 	} = useSession(); // replaces siweConfig.getSession()
-	const [userData, setUserData] = useState<any>(null);
+	const [userSessionData, setUserSessionData] = useState<any>(null);
+	const [userBackendData, setUserBackendData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [userUpdateLoading, setUserUpdateLoading] = useState(false);
 	
@@ -30,20 +31,23 @@ export default function FetchUserProfile(): JSX.Element {
 			if (status !== 'authenticated') return;
 			
 			// Load user data from backend
-			// const fetchData = async () => {
-			// 	const user = await fetchUserProfileData();
-			// 	if (user) setUserData(user);
-			// 	setLoading(false);
-			// };
-			//
-			// fetchData();
+			const fetchData = async () => {
+				const {
+					chainId,
+					user
+				} = await fetchUserProfileData();
+				
+				if (user && chainId) setUserBackendData({
+					...user,
+					chainId
+				});
+				setLoading(false);
+			};
+			
+			fetchData();
 			
 			// load user data from session
-			setUserData({
-				...session.user,
-				address: session.address,
-				chainId: session.chainId
-			});
+			setUserSessionData(session.user);
 			setLoading(false);
 		},
 		[status]
@@ -54,34 +58,50 @@ export default function FetchUserProfile(): JSX.Element {
 		
 		await updateUserProfile(update,
 			{
-				email: 'pietje2@piet.com',
-				name: 'Pietje Puk2'
+				email: 'pietje3@piet.com',
+				name: 'Pietje Puk3',
+				picture: 'avatar2.jpg'
 			}
 		);
-		
 		setUserUpdateLoading(false);
 	};
 	
 	return (
 		<>
 			<Navbar/>
-			<main className="pt-16 xs:pt-20 sm:pt-24">
+			<main className="pt-16 xs:pt-20 sm:pt-24 max-w-screen-xl mx-auto">
+				<h1 className="my-6 text-3xl sm:text-xl md:text-2xl md:leading-[1.2] font-bold">
+					Profile
+				</h1>
 				{status === 'loading' || loading ? (
 					<p>Loading profile...</p>
 				) : status === 'unauthenticated' || !session ? (
 					<p>You are not logged in.</p>
-				) : !userData ? (
-					<p>Could not load profile data.</p>
+				) : !userSessionData ? (
+					<p>Could not load user session data.</p>
+				) : !userBackendData ? (
+					<p>Could not load user backend data.</p>
 				) : (
 					<>
 						<div className="mb-4">
-							<p><strong>Address:</strong> {userData.address}</p>
-							<p><strong>Chain ID:</strong> {userData.chainId}</p>
-							<p><strong>Email:</strong> {userData.email}</p>
-							<p><strong>Name:</strong> {userData.name}</p>
-							<p><strong>Image:</strong> {userData.picture}</p>
-							<p><strong>User ID:</strong> {userData.userId}</p>
-							<p><strong>Role:</strong> {userData.role}</p>
+							<h5>Session data</h5>
+							<p><strong>Address:</strong> {userSessionData.address}</p>
+							<p><strong>Chain ID:</strong> {userSessionData.chainId}</p>
+							<p><strong>Email:</strong> {userSessionData.email}</p>
+							<p><strong>Name:</strong> {userSessionData.name}</p>
+							<p><strong>Image:</strong> {userSessionData.picture}</p>
+							<p><strong>User ID:</strong> {userSessionData.userId}</p>
+							<p><strong>Role:</strong> {userSessionData.role}</p>
+						</div>
+						<div className="mb-4">
+							<h5>Backend data</h5>
+							<p><strong>Address:</strong> {userBackendData.address}</p>
+							<p><strong>Chain ID:</strong> {userBackendData.chainId}</p>
+							<p><strong>Email:</strong> {userBackendData.email}</p>
+							<p><strong>Name:</strong> {userBackendData.name}</p>
+							<p><strong>Image:</strong> {userBackendData.picture}</p>
+							<p><strong>User ID:</strong> {userBackendData.userId}</p>
+							<p><strong>Role:</strong> {userBackendData.role}</p>
 						</div>
 						
 						<Button onClick={handleClick} disabled={userUpdateLoading}>
@@ -96,6 +116,7 @@ export default function FetchUserProfile(): JSX.Element {
 						</Button>
 					</>
 				)}
+			
 			</main>
 		</>
 	);

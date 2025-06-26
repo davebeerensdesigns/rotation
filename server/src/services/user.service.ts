@@ -1,27 +1,31 @@
-import {type FindOneAndUpdateOptions, ObjectId, type UpdateFilter, type WithId} from 'mongodb';
-import {getUsersCollection} from '../db/get-collection';
-import {User} from '../types/user';
+import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
+import MongoDatabase from '../db';
+import {UserUpdateDto} from '../dtos/user.dto';
+import {UserEntity} from '../models/user.entity';
 
-/**
- * Finds an existing user by their wallet address or creates a new user if none exists.
- *
- * If the user is created, default values are used for name, email, and picture.
- * The chainId is also updated on every call.
- *
- * @param {string} address - The user's wallet address (must be unique).
- * @param {string} chainId - The blockchain network identifier.
- * @returns {Promise<User>} A Promise that resolves to the existing or newly created user with a MongoDB ObjectId.
- */
-export const findOrCreateUser = async (
-	address: string,
-	chainId: string
-): Promise<User> => {
-	const users = getUsersCollection();
+export class UserService {
+	private static instance: UserService;
 	
-	const result = await users.findOneAndUpdate(
-		{address},
-		{
-			$set: {chainId},
+	private constructor() {}
+	
+	public static getInstance(): UserService {
+		if (!UserService.instance) {
+			UserService.instance = new UserService();
+		}
+		return UserService.instance;
+	}
+	
+	private getCollection() {
+		return MongoDatabase.getInstance()
+			.getUsersCollection();
+	}
+	
+	public async findOrCreateUser(
+		address: string
+	): Promise<WithId<UserEntity>> {
+		const users = this.getCollection();
+		
+		const update: UpdateFilter<UserEntity> = {
 			$setOnInsert: {
 				role: 'viewer',
 				name: 'John',
@@ -29,51 +33,43 @@ export const findOrCreateUser = async (
 				picture: '',
 				address
 			}
-		},
-		{
+		};
+		
+		const options: FindOneAndUpdateOptions = {
 			upsert: true,
 			returnDocument: 'after'
+		};
+		
+		const result = await users.findOneAndUpdate({address},
+			update,
+			options
+		);
+		
+		if (!result) {
+			throw new Error('[findOrCreateUser] Failed to create or fetch user.');
 		}
-	);
-	
-	if (!result) {
-		throw new Error('[findOrCreateUser] Failed to create or fetch user.');
+		
+		return result;
 	}
 	
-	return result;
-};
-
-/**
- * Retrieves a user document by their unique MongoDB ObjectId.
- *
- * Accepts either an ObjectId instance or a string representation of it.
- *
- * @param {string | ObjectId} userId - The user's MongoDB ObjectId or its string form.
- * @returns {Promise<User | null>} A Promise that resolves to the user object if found, or null otherwise.
- */
-export const findUserById = async (
-	userId: string | ObjectId
-): Promise<User | null> => {
-	const users = getUsersCollection();
-	const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
-	return users.findOne({_id: id});
-};
-
-export const findAndUpdateUser = async (
-	userId: string | ObjectId,
-	data: Partial<User>
-): Promise<WithId<User> | null> => {
-	const users = getUsersCollection();
-	const id = typeof userId === 'string' ? new ObjectId(userId) : userId;
+	public async getUserByUserId(userId: ObjectId): Promise<UserEntity | null> {
+		const users = this.getCollection();
+		
+		return await users.findOne({_id: userId});
+	}
 	
-	const options: FindOneAndUpdateOptions = {
-		returnDocument: 'after' // (v5.x): returns updated doc
-	};
-	
-	const update: UpdateFilter<User> = {$set: data};
-	
-	return await users.findOneAndUpdate({_id: id},
-		update,
-		options
-	);
-};
+	public async findAndUpdateUser(
+		userId: ObjectId,
+		data: UserUpdateDto
+	): Promise<WithId<UserEntity> | null> {
+		const users = this.getCollection();
+		
+		const update: UpdateFilter<UserEntity> = {$set: data};
+		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
+		
+		return await users.findOneAndUpdate({_id: userId},
+			update,
+			options
+		);
+	}
+}

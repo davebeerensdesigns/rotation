@@ -1,107 +1,79 @@
-import {Request, Response} from 'express';
-import {verifyAccessToken} from '../utils/token.utils';
+import {Response} from 'express';
 
-import {error, success} from '../utils/response.utils';
-import {extractBearerToken, buildUserResponse} from '../utils/auth.utils';
-import {findAndUpdateUser, findUserById} from '../services/user.service';
+import {ResponseUtils} from '../utils/response.utils';
+import {UserService} from '../services/user.service';
+import {UserMapper} from '../mappers/user.mapper';
+import {userUpdateSchema} from '../schemas/user.schema';
+import {AuthRequest} from '../middlewares/access-token.middleware';
+import {ObjectId} from 'mongodb';
+
+const userService = UserService.getInstance();
+const responseUtils = ResponseUtils.getInstance();
 
 export default class UserController {
-	
 	async me(
-		req: Request,
+		req: AuthRequest,
 		res: Response
 	): Promise<Response> {
-		console.log('[ME]');
-		const token = extractBearerToken(req);
 		
-		if (!token) return error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
+		const userId = new ObjectId(req.auth!.userId);
+		const chainId = req.auth!.chainId;
+		const user = await userService.getUserByUserId(userId);
 		
-		try {
-			const payload = verifyAccessToken(token);
-			if (!payload?.sub) return error(res,
-				{error: 'Invalid or expired access token'},
-				401
-			);
-			const user = await findUserById(payload.sub);
-			if (!user) return error(res,
-				{error: 'User not found'},
-				404
-			);
-			return success(res,
+		if (!user) {
+			return responseUtils.error(res,
 				{
-					user: buildUserResponse(user)
-				}
-			);
-		} catch (err: any) {
-			return error(res,
-				{error: err.message},
+					error: 'No user found'
+				},
 				401
 			);
 		}
+		
+		return responseUtils.success(res,
+			{
+				chainId,
+				user: UserMapper.toResponse(user)
+			}
+		);
 	}
 	
-	/**
-	 * Validates the access token from the Authorization header and returns associated user info.
-	 *
-	 * @param {Request} req - The Express request object with a bearer access token in the Authorization header.
-	 * @param {Response} res - The Express response object used to send back the session user data or error.
-	 * @returns {Promise<Response>} A Promise resolving to a response with user info or error.
-	 */
 	async update(
-		req: Request,
+		req: AuthRequest,
 		res: Response
 	): Promise<Response> {
-		console.log('[UPDATE]');
-		// TODO: validate data
-		const token = extractBearerToken(req);
-		if (!token) return error(res,
-			{error: 'Authorization header missing or malformed'},
-			401
-		);
 		
-		try {
-			const payload = verifyAccessToken(token);
-			if (!payload?.sub) return error(res,
-				{error: 'Invalid or expired access token'},
-				401
-			);
-			
-			const {
-				email,
-				name
-			} = req.body;
-			
-			// Bouw dynamisch de update-object
-			const data: Record<string, any> = {};
-			if (email) data.email = email;
-			if (name) data.name = name;
-			
-			if (Object.keys(data).length === 0) {
-				return error(res,
-					{error: 'No valid update fields provided'},
-					400
-				);
-			}
-			
-			const user = await findAndUpdateUser(payload.sub,
-				data
-			);
-			if (!user) return error(res,
-				{error: 'User not found'},
-				404
-			);
-			
-			return success(res,
-				{user: buildUserResponse(user)}
-			);
-		} catch (err: any) {
-			return error(res,
-				{error: err.message},
-				401
+		const userId = new ObjectId(req.auth!.userId);
+		
+		const parsed = userUpdateSchema.safeParse(req.body);
+		if (!parsed.success) {
+			return responseUtils.error(res,
+				{
+					error: 'Validation failed',
+					details: parsed.error.format()
+				},
+				400
 			);
 		}
+		
+		const updateData = parsed.data;
+		
+		const updatedUser = await userService.findAndUpdateUser(userId,
+			updateData
+		);
+		
+		if (!updatedUser) {
+			return responseUtils.error(res,
+				{
+					error: 'User not found or update failed'
+				},
+				404
+			);
+		}
+		
+		return responseUtils.success(res,
+			{
+				user: UserMapper.toResponse(updatedUser)
+			}
+		);
 	}
 }

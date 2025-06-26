@@ -5,15 +5,7 @@ import {wagmiAdapter, projectId, siweConfig, metadata, chains, chainLogos} from 
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {State, WagmiProvider} from 'wagmi';
 import {
-	createAppKit,
-	useAppKit,
-	useAppKitAccount,
-	useAppKitEvents,
-	useAppKitNetwork,
-	useAppKitState,
-	useAppKitTheme,
-	useDisconnect,
-	useWalletInfo
+	createAppKit
 } from '@reown/appkit/react';
 
 // Initialize a singleton QueryClient for React Query caching
@@ -29,7 +21,7 @@ if (!projectId) {
  * This sets up network support, SIWE integration, and disables optional features like swaps and onramps.
  * Must be called once before rendering any AppKit-powered components.
  */
-const modal = createAppKit({
+createAppKit({
 	themeMode: 'light',
 	adapters: [wagmiAdapter],
 	networks: chains,
@@ -63,6 +55,7 @@ export default function AppKitProvider({
 	children: ReactNode;
 	initialState?: State;
 }): JSX.Element {
+	
 	return (
 		<WagmiProvider config={wagmiAdapter.wagmiConfig} initialState={initialState}>
 			<QueryClientProvider client={queryClient}>
@@ -71,14 +64,3 @@ export default function AppKitProvider({
 		</WagmiProvider>
 	);
 }
-export {
-	modal,
-	useAppKit,
-	useAppKitState,
-	useAppKitTheme,
-	useAppKitEvents,
-	useAppKitAccount,
-	useWalletInfo,
-	useAppKitNetwork,
-	useDisconnect
-};

@@ -1,4 +1,3 @@
-import {WalletLogin} from '@/components/wallet-login';
 import {JSX} from 'react';
 import {Navbar} from '@/components/navbar';
 
@@ -14,8 +13,10 @@ export default function Home(): JSX.Element {
 	return (
 		<>
 			<Navbar/>
-			<main className="pt-16 xs:pt-20 sm:pt-24">
-			
+			<main className="pt-16 xs:pt-20 sm:pt-24 max-w-screen-xl mx-auto">
+				<h1 className="my-6 text-3xl sm:text-xl md:text-2xl md:leading-[1.2] font-bold">
+					Homepage
+				</h1>
 			</main>
 		</>
 	);

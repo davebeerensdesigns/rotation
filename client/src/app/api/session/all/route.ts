@@ -1,8 +1,8 @@
-import {auth} from '@/auth';
+import {auth} from '@/auth'; // uit je middleware-config, dus werkt
 import {NextResponse} from 'next/server';
 
 export async function GET() {
-	const session = await auth();
+	const session = await auth(); // hiermee krijg je de sessie (JWT-strategie)
 	
 	if (!session || !session.user?.accessToken) {
 		return NextResponse.json({error: 'Unauthorized'},
@@ -11,7 +11,7 @@ export async function GET() {
 	}
 	
 	try {
-		const backendRes = await fetch('http://localhost:3001/api/user/me',
+		const backendRes = await fetch('http://localhost:3001/api/session/all',
 			{
 				method: 'GET',
 				headers: {
@@ -20,15 +20,11 @@ export async function GET() {
 				}
 			}
 		);
-		const result = await backendRes.json();
 		
-		if (!backendRes.ok) {
-			return NextResponse.json({error: result.error || 'User data fetch failed'},
-				{status: backendRes.status}
-			);
-		}
-		
-		return NextResponse.json(result);
+		const json = await backendRes.json();
+		return NextResponse.json(json,
+			{status: backendRes.status}
+		);
 		
 	} catch (err) {
 		return NextResponse.json({error: 'Failed to fetch user data'},

@@ -1,12 +1,7 @@
 import {Router} from 'express';
 import UserController from '../controllers/user.controller';
+import {accessTokenMiddleware} from '../middlewares/access-token.middleware';
 
-/**
- * Class representing authentication-related route definitions.
- *
- * Handles routes for nonce generation, signature verification, session retrieval,
- * token refreshing, and logout functionality.
- */
 class UserRoutes {
 	public router = Router();
 	private controller = new UserController();
@@ -15,17 +10,13 @@ class UserRoutes {
 		this.initializeRoutes();
 	}
 	
-	/**
-	 * Initializes authentication routes and binds them to controller methods.
-	 *
-	 * Routes:
-	 * - PUT /update
-	 */
 	private initializeRoutes(): void {
 		this.router.get('/me',
+			accessTokenMiddleware(),
 			this.controller.me
 		);
 		this.router.patch('/update',
+			accessTokenMiddleware(true),
 			this.controller.update
 		);
 	}

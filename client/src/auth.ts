@@ -56,14 +56,14 @@ export const {
 			session?: Session;
 		}): Promise<JWT> {
 			// Initial sign-in: merge user data into token
-			// Initial sign-in: merge user data into token
 			if (trigger === 'update' && session?.user) {
 				token.name = session.user.name ?? token.name ?? null;
 				token.email = session.user.email ?? token.email ?? null;
 				token.picture = session.user.picture ?? token.picture ?? null;
 			}
 			if (user) {
-				token.sub = user.id;
+				token.address = user.address;
+				token.chainId = user.chainId;
 				token.accessTokenExpires = user.accessTokenExpires;
 				token.accessToken = user.accessToken;
 				token.refreshToken = user.refreshToken;
@@ -83,8 +83,7 @@ export const {
 			
 			// Access token expired — try refresh
 			try {
-				console.log('[EXPIRED] sending refresh request');
-				const response = await fetch('http://localhost:3001/api/auth/refresh',
+				const response = await fetch('http://localhost:3001/api/session/refresh',
 					{
 						method: 'POST',
 						headers: {
@@ -94,29 +93,25 @@ export const {
 					}
 				);
 				
-				const {data: tokensOrError} = await response.json();
+				const json = await response.json();
 				
-				if (!response.ok) {
-					token.error = 'RefreshAccessTokenError';
-					return token;
+				if (json.status !== 'success') {
+					return {
+						...token,
+						error: 'RefreshAccessTokenError'
+					};
 				}
-				
-				const newTokens = tokensOrError as {
-					accessToken: string;
-					accessTokenExpires: number;
-				};
-				
-				console.log('[EXPIRED] tokens successfully refreshed');
 				
 				return {
 					...token,
-					accessTokenExpires: newTokens.accessTokenExpires,
-					accessToken: newTokens.accessToken
+					accessTokenExpires: json.data.accessTokenExpires,
+					accessToken: json.data.accessToken
 				};
 			} catch (error) {
-				console.error('[EXPIRED] Error refreshing tokens');
-				token.error = 'RefreshAccessTokenError';
-				return token;
+				return {
+					...token,
+					error: 'RefreshAccessTokenError'
+				};
 			}
 		},
 		
@@ -132,22 +127,16 @@ export const {
 			session,
 			token
 		}: { session: Session; token: JWT }): Promise<Session> {
-			if (!token.sub) {
-				return session;
-			}
 			
+			const [, chainNumber] = token.chainId.split(':');
+			const parsedChainId = parseInt(chainNumber,
+				10
+			);
 			session.error = token.error;
-			
-			// Parse "did:pkh:eip155:1:0xabc..." structure
-			const [, chainId, address] = token.sub.split(':');
-			if (chainId && address) {
-				session.address = address;
-				session.chainId = parseInt(chainId,
-					10
-				);
-			}
-			
-			session.user.id = token.sub;
+			session.address = token.address;
+			session.chainId = parsedChainId;
+			session.user.address = token.address;
+			session.user.chainId = token.chainId;
 			session.user.accessToken = token.accessToken;
 			session.user.accessTokenExpires = token.accessTokenExpires;
 			session.user.userId = token.userId;

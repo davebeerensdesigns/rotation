@@ -8,16 +8,16 @@ export async function fetchUserProfileData(): Promise<any | null> {
 				}
 			}
 		);
-		
 		if (!res.ok) {
 			console.error('[SERVICE] Failed to fetch user profile',
-				res.status
+				res
 			);
 			return null;
 		}
 		
 		const {data} = await res.json();
-		return data.user;
+		
+		return data;
 	} catch (err) {
 		console.error('[SERVICE] Error fetching user profile',
 			err
@@ -30,10 +30,12 @@ export async function updateUserProfile(
 	updateFn: (data: any) => Promise<any>,
 	{
 		email,
-		name
+		name,
+		picture
 	}: {
 		email: string;
 		name: string;
+		picture: string;
 	}
 ): Promise<boolean> {
 	try {
@@ -45,7 +47,8 @@ export async function updateUserProfile(
 				},
 				body: JSON.stringify({
 					email,
-					name
+					name,
+					picture
 				})
 			}
 		);
@@ -60,11 +63,11 @@ export async function updateUserProfile(
 		await updateFn({
 			user: {
 				email,
-				name
+				name,
+				picture
 			}
 		});
 		
-		console.log('[updateUserProfile] User updated in DB and session');
 		return true;
 	} catch (err) {
 		console.error('[updateUserProfile] Error:',
