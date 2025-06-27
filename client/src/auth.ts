@@ -64,9 +64,10 @@ export const {
 			if (user) {
 				token.address = user.address;
 				token.chainId = user.chainId;
-				token.accessTokenExpires = user.accessTokenExpires;
 				token.accessToken = user.accessToken;
+				token.accessTokenExpires = user.accessTokenExpires;
 				token.refreshToken = user.refreshToken;
+				token.refresTokenExpires = user.refreshTokenExpires;
 				token.userId = user.userId;
 				token.role = user.role;
 				token.name = user.name || null;
@@ -79,6 +80,14 @@ export const {
 			// Access token still valid
 			if (token.accessTokenExpires && nowInSeconds < token.accessTokenExpires) {
 				return token;
+			}
+			
+			// Refresh token expired
+			if (token.refreshTokenExpires && nowInSeconds > token.refreshTokenExpires) {
+				return {
+					...token,
+					error: 'RefreshAccessTokenError'
+				};
 			}
 			
 			// Access token expired — try refresh

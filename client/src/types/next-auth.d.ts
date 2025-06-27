@@ -24,6 +24,7 @@ declare module 'next-auth' {
 		accessToken: string;
 		accessTokenExpires: number;
 		refreshToken: string;
+		refreshTokenExpires: number;
 		userId: string;
 		address: string;
 		chainId: string;
@@ -40,9 +41,10 @@ declare module 'next-auth/jwt' {
 		error?: 'RefreshAccessTokenError';
 		
 		id: string;
-		accessTokenExpires: number;
 		accessToken: string;
+		accessTokenExpires: number;
 		refreshToken: string,
+		refreshTokenExpires: number;
 		userId: string;
 		address: string;
 		chainId: string;

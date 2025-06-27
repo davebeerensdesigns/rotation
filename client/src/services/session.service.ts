@@ -49,14 +49,16 @@ export async function verifySIWEAuth({
 			user,
 			chainId,
 			accessToken,
+			accessTokenExpires,
 			refreshToken,
-			accessTokenExpires
+			refreshTokenExpires
 		} = data;
 		
 		return {
 			accessToken,
-			refreshToken,
 			accessTokenExpires,
+			refreshToken,
+			refreshTokenExpires,
 			chainId,
 			userId: user.userId,
 			address: user.address,

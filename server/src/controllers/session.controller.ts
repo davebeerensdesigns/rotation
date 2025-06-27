@@ -107,6 +107,10 @@ export default class SessionController {
 			const decodedAccess = sessionUtils.decodeToken(accessToken);
 			const accessTokenExpires = decodedAccess?.exp;
 			
+			// Decode refreshToken to get token exp
+			const decodedRefresh = sessionUtils.decodeToken(refreshToken);
+			const refreshTokenExpires = decodedRefresh?.exp;
+			
 			// Store the session in database
 			await sessionService.storeSession(
 				user._id,
@@ -120,8 +124,9 @@ export default class SessionController {
 			return responseUtils.success(res,
 				{
 					accessToken,
-					refreshToken,
 					accessTokenExpires,
+					refreshToken,
+					refreshTokenExpires,
 					chainId,
 					user: UserMapper.toResponse(user)
 				}
