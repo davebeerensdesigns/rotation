@@ -32,7 +32,6 @@ export default class SessionController {
 		req: Request,
 		res: Response
 	): Promise<Response> {
-		
 		try {
 			// Take data from body
 			const {
@@ -95,12 +94,13 @@ export default class SessionController {
 			const {
 				accessToken,
 				refreshToken
-			} = sessionUtils.generateTokens(
+			} = await sessionUtils.generateTokens(
 				user._id.toString(),
 				user.role,
 				sessionId,
 				visitorId,
-				chainId
+				chainId,
+				address
 			);
 			
 			// Decode accessToken to get token exp
@@ -118,7 +118,8 @@ export default class SessionController {
 				chainId,
 				userAgent,
 				visitorId,
-				sessionId
+				sessionId,
+				address
 			);
 			
 			return responseUtils.success(res,
@@ -128,6 +129,7 @@ export default class SessionController {
 					refreshToken,
 					refreshTokenExpires,
 					chainId,
+					address,
 					user: UserMapper.toResponse(user)
 				}
 			);
@@ -269,9 +271,6 @@ export default class SessionController {
 			);
 			
 		} catch (err: any) {
-			console.error('[SESSION] Failed to load sessions:',
-				err
-			);
 			return responseUtils.error(res,
 				{error: 'Unexpected error retrieving sessions'},
 				500

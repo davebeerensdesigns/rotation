@@ -39,7 +39,7 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 				);
 			}
 			
-			const payload = sessionUtils.verifyAccessToken(accessToken);
+			const payload = await sessionUtils.verifyAccessToken(accessToken);
 			if (
 				!payload?.sub ||
 				!payload.sessionId ||

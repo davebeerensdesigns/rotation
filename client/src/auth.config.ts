@@ -65,11 +65,9 @@ export default {
 					typeof credentials?.userAgent !== 'string' ||
 					typeof credentials?.visitorId !== 'string'
 				) {
-					console.error('[Authorize] Invalid credential types');
 					return null;
 				}
-				
-				return verifySIWEAuth({
+				return await verifySIWEAuth({
 					message: credentials.message,
 					signature: credentials.signature,
 					userAgent: credentials.userAgent,

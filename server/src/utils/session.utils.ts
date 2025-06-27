@@ -1,22 +1,34 @@
 import dotenv from 'dotenv';
+import {compactDecrypt, CompactEncrypt, JWTPayload, jwtVerify, SignJWT} from 'jose';
+import {Request} from 'express';
+import {JwtPayload} from '../types/jwt';
 
 dotenv.config();
-
-import jwt from 'jsonwebtoken';
-import {JwtPayload} from '../types/jwt';
-import {Request} from 'express';
 
 export class SessionUtils {
 	private static instance: SessionUtils;
 	
-	private readonly jwtSecret: string;
-	private readonly refreshSecret: string;
+	private readonly accessSecret: Uint8Array;
+	private readonly refreshSecret: Uint8Array;
+	private readonly encryptionSecret: Uint8Array;
 	private readonly accessTokenExpiry: number;
 	private readonly refreshTokenExpiry: number;
 	
 	private constructor() {
-		this.jwtSecret = process.env.JWT_SECRET || '';
-		this.refreshSecret = process.env.REFRESH_SECRET || '';
+		const accessSecretEnv = process.env.JWT_SECRET || '';
+		const refreshSecretEnv = process.env.REFRESH_SECRET || '';
+		const encryptionSecretEnv = process.env.ENCRYPTION_SECRET || '';
+		
+		this.accessSecret = Buffer.from(accessSecretEnv,
+			'base64'
+		);
+		this.refreshSecret = Buffer.from(refreshSecretEnv,
+			'base64'
+		);
+		this.encryptionSecret = Buffer.from(encryptionSecretEnv,
+			'base64'
+		);
+		
 		this.accessTokenExpiry = parseInt(process.env.ACCESS_TOKEN_EXPIRY || '600',
 			10
 		);
@@ -24,13 +36,16 @@ export class SessionUtils {
 			10
 		);
 		
-		if (!this.jwtSecret || !this.refreshSecret) {
-			console.error('Make sure JWT_SECRET and REFRESH_SECRET are present in .env');
+		if (
+			this.accessSecret.length !== 32 ||
+			this.refreshSecret.length !== 32 ||
+			this.encryptionSecret.length !== 32
+		) {
+			console.error('One or more secrets are not 256-bit (32 bytes) in length. Check your .env values.');
 			process.exit(1);
 		}
 	}
 	
-	// ✅ Singleton accessor
 	public static getInstance(): SessionUtils {
 		if (!SessionUtils.instance) {
 			SessionUtils.instance = new SessionUtils();
@@ -44,38 +59,83 @@ export class SessionUtils {
 		return authHeader.split(' ')[1];
 	}
 	
-	public generateTokens(
+	private async generateTokenPayload(
+		sessionId: string,
+		visitorId: string
+	): Promise<string> {
+		const innerPayload = JSON.stringify({
+			sessionId,
+			visitorId
+		});
+		
+		return await new CompactEncrypt(new TextEncoder().encode(innerPayload))
+			.setProtectedHeader({
+				alg: 'dir',
+				enc: 'A256GCM'
+			})
+			.encrypt(this.encryptionSecret);
+	}
+	
+	public async generateAccessToken(
 		userId: string,
 		role: string,
 		sessionId: string,
 		visitorId: string,
-		chainId: string
-	): { accessToken: string; refreshToken: string } {
-		const accessToken = jwt.sign({
-				sub: userId,
-				role,
-				sessionId,
-				visitorId,
-				chainId
-			},
-			this.jwtSecret,
-			{
-				expiresIn: this.accessTokenExpiry
-			}
+		chainId: string,
+		address: string
+	): Promise<string> {
+		const encryptedInner = await this.generateTokenPayload(sessionId,
+			visitorId
 		);
 		
-		const refreshToken = jwt.sign({
-				sub: userId,
-				role,
-				sessionId,
-				visitorId,
-				chainId
-			},
-			this.refreshSecret,
-			{
-				expiresIn: this.refreshTokenExpiry
-			}
+		return await new SignJWT({
+			sub: userId,
+			chainId,
+			role,
+			address,
+			enc: encryptedInner
+		})
+			.setProtectedHeader({alg: 'HS256'})
+			.setIssuedAt()
+			.setExpirationTime(`${this.accessTokenExpiry}s`)
+			.sign(this.accessSecret);
+	}
+	
+	public async generateTokens(
+		userId: string,
+		role: string,
+		sessionId: string,
+		visitorId: string,
+		chainId: string,
+		address: string
+	): Promise<{ accessToken: string; refreshToken: string }> {
+		const encryptedInner = await this.generateTokenPayload(sessionId,
+			visitorId
 		);
+		
+		const accessToken = await new SignJWT({
+			sub: userId,
+			chainId,
+			role,
+			address,
+			enc: encryptedInner
+		})
+			.setProtectedHeader({alg: 'HS256'})
+			.setIssuedAt()
+			.setExpirationTime(`${this.accessTokenExpiry}s`)
+			.sign(this.accessSecret);
+		
+		const refreshToken = await new SignJWT({
+			sub: userId,
+			chainId,
+			role,
+			address,
+			enc: encryptedInner
+		})
+			.setProtectedHeader({alg: 'HS256'})
+			.setIssuedAt()
+			.setExpirationTime(`${this.refreshTokenExpiry}s`)
+			.sign(this.refreshSecret);
 		
 		return {
 			accessToken,
@@ -83,21 +143,25 @@ export class SessionUtils {
 		};
 	}
 	
-	public verifyAccessToken(token: string): JwtPayload | null {
+	public async verifyAccessToken(token: string): Promise<JwtPayload | null> {
 		try {
-			return jwt.verify(token,
-				this.jwtSecret
-			) as JwtPayload;
+			const {payload} = await jwtVerify(token,
+				this.accessSecret
+			);
+			const decrypted = await this.decryptNestedPayload(payload);
+			return {...payload, ...decrypted} as JwtPayload;
 		} catch {
 			return null;
 		}
 	}
 	
-	public verifyRefreshToken(token: string): JwtPayload | null {
+	public async verifyRefreshToken(token: string): Promise<JwtPayload | null> {
 		try {
-			return jwt.verify(token,
+			const {payload} = await jwtVerify(token,
 				this.refreshSecret
-			) as JwtPayload;
+			);
+			const decrypted = await this.decryptNestedPayload(payload);
+			return {...payload, ...decrypted} as JwtPayload;
 		} catch {
 			return null;
 		}
@@ -105,14 +169,23 @@ export class SessionUtils {
 	
 	public decodeToken(token: string): JwtPayload | null {
 		try {
-			const decoded = jwt.decode(token);
-			if (decoded && typeof decoded === 'object') {
-				return decoded as JwtPayload;
-			}
-			return null;
+			const decoded = JSON.parse(Buffer.from(token.split('.')[1],
+					'base64'
+				)
+				.toString());
+			return decoded as JwtPayload;
 		} catch {
 			return null;
 		}
 	}
 	
+	private async decryptNestedPayload(payload: JWTPayload): Promise<Record<string, any>> {
+		const enc = payload.enc as string;
+		if (!enc) throw new Error('Missing encrypted session payload');
+		
+		const {plaintext} = await compactDecrypt(enc,
+			this.encryptionSecret
+		);
+		return JSON.parse(new TextDecoder().decode(plaintext));
+	}
 }

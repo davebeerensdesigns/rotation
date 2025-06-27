@@ -55,16 +55,9 @@ export const NetworkSelectButton = () => {
 						key={id}
 						disabled={id === Number(chainId)}
 						onClick={() => {
-							console.log('Switching to:',
-								network.id,
-								network.name
-							);
 							try {
 								switchNetwork(network);
 							} catch (error) {
-								console.log('Failed to switch network:',
-									error
-								);
 							}
 						}}
 						className="flex items-center gap-2"

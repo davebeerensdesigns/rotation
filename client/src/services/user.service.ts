@@ -9,9 +9,6 @@ export async function fetchUserProfileData(): Promise<any | null> {
 			}
 		);
 		if (!res.ok) {
-			console.error('[SERVICE] Failed to fetch user profile',
-				res
-			);
 			return null;
 		}
 		
@@ -19,9 +16,6 @@ export async function fetchUserProfileData(): Promise<any | null> {
 		
 		return data;
 	} catch (err) {
-		console.error('[SERVICE] Error fetching user profile',
-			err
-		);
 		return null;
 	}
 }
@@ -54,9 +48,6 @@ export async function updateUserProfile(
 		);
 		
 		if (!res.ok) {
-			console.error('[updateUserProfile] Server responded with',
-				res.status
-			);
 			return false;
 		}
 		
@@ -70,9 +61,6 @@ export async function updateUserProfile(
 		
 		return true;
 	} catch (err) {
-		console.error('[updateUserProfile] Error:',
-			err
-		);
 		return false;
 	}
 }

@@ -58,13 +58,14 @@ export class SessionService {
 		accessTokenExpires: number;
 	}> {
 		const sessions = this.getCollection();
-		const payload = sessionUtils.verifyRefreshToken(refreshToken);
+		const payload = await sessionUtils.verifyRefreshToken(refreshToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
 			!payload.visitorId ||
 			!ObjectId.isValid(payload.sub) ||
-			!payload.chainId
+			!payload.chainId ||
+			!payload.address
 		) {
 			throw new Error('Invalid or expired refresh token');
 		}
@@ -86,16 +87,17 @@ export class SessionService {
 		}
 		
 		const user = await userService.getUserByUserId(userId);
-		if (!user || !user._id) {
+		if (!user || !user._id || !user.address) {
 			throw new Error('User not found');
 		}
 		
-		const {accessToken} = sessionUtils.generateTokens(
+		const accessToken = await sessionUtils.generateAccessToken(
 			user._id.toString(),
 			user.role,
 			sessionId,
-			payload.visitorId,
-			payload.chainId
+			visitorId,
+			payload.chainId,
+			user.address
 		);
 		
 		const decoded = sessionUtils.decodeToken(accessToken);
@@ -111,7 +113,7 @@ export class SessionService {
 	
 	public async findExactSession(accessToken: string): Promise<SessionEntity | null> {
 		const sessions = this.getCollection();
-		const payload = sessionUtils.verifyAccessToken(accessToken);
+		const payload = await sessionUtils.verifyAccessToken(accessToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
@@ -133,7 +135,7 @@ export class SessionService {
 	
 	public async logoutUserCurrentSession(accessToken: string): Promise<void> {
 		const sessions = this.getCollection();
-		const payload = sessionUtils.verifyAccessToken(accessToken);
+		const payload = await sessionUtils.verifyAccessToken(accessToken);
 		if (
 			!payload?.sub ||
 			!payload.sessionId ||
@@ -159,11 +161,8 @@ export class SessionService {
 		
 		let payload;
 		try {
-			payload = sessionUtils.verifyAccessToken(accessToken);
+			payload = await sessionUtils.verifyAccessToken(accessToken);
 		} catch (err) {
-			console.warn('[JWT] Failed to verify access token:',
-				err
-			);
 			return null;
 		}
 		
@@ -173,9 +172,6 @@ export class SessionService {
 			!payload.visitorId ||
 			!ObjectId.isValid(payload.sub)
 		) {
-			console.warn('[JWT] Payload invalid:',
-				payload
-			);
 			return null;
 		}
 		
@@ -191,7 +187,8 @@ export class SessionService {
 		chainId: string,
 		userAgent: string,
 		visitorId: string,
-		sessionId: string
+		sessionId: string,
+		address: string
 	): Promise<void> {
 		const sessions = this.getCollection();
 		await sessions.updateOne(
@@ -207,11 +204,11 @@ export class SessionService {
 					sessionId,
 					visitorId,
 					chainId,
+					address,
 					createdAt: new Date()
 				}
 			},
 			{upsert: true}
 		);
 	}
-	
 }

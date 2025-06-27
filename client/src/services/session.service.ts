@@ -15,8 +15,7 @@ export async function verifySIWEAuth({
 		if (!message) {
 			return null;
 		}
-		// TODO: use ua-parser-js to send fingerprint data and store multiple session if user logs in on different devices
-		// TODO: maybe save accesstoken to verify in backend if session is still valid
+		
 		const res = await fetch('http://localhost:3001/api/session/verify',
 			{
 				method: 'POST',
@@ -68,9 +67,6 @@ export async function verifySIWEAuth({
 			picture: user.picture ?? null
 		} satisfies User;
 	} catch (err) {
-		console.error('[verifySIWEAuth] Exception:',
-			err
-		);
 		return null;
 	}
 }

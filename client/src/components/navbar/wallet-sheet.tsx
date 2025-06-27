@@ -20,9 +20,7 @@ export const WalletSheet = (): JSX.Element => {
 			await signOut({redirect: false});
 			setOpen(false);
 		} catch (err) {
-			console.error('[Logout] Failed to logout cleanly',
-				err
-			);
+			setOpen(false);
 		}
 	};
 	

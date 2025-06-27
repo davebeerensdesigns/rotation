@@ -34,9 +34,6 @@ export async function PATCH(req: Request) {
 		
 		return NextResponse.json(result);
 	} catch (err) {
-		console.error('[PROXY] Failed to forward PATCH /api/user/update',
-			err
-		);
 		return NextResponse.json({error: 'Internal server error'},
 			{status: 500}
 		);
