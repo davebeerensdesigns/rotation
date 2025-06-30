@@ -1,6 +1,7 @@
 import {Router} from 'express';
 import UserController from '../controllers/user.controller';
-import {accessTokenMiddleware} from '../middlewares/access-token.middleware';
+import {verifyAccessTokenMiddleware} from '../middlewares/verify-access-token.middleware';
+import {verifyAccessTokenEncMiddleware} from '../middlewares/verify-access-token-enc.middleware';
 
 class UserRoutes {
 	public router = Router();
@@ -12,11 +13,11 @@ class UserRoutes {
 	
 	private initializeRoutes(): void {
 		this.router.get('/me',
-			accessTokenMiddleware(),
+			verifyAccessTokenMiddleware(),
 			this.controller.me
 		);
 		this.router.patch('/update',
-			accessTokenMiddleware(true),
+			verifyAccessTokenEncMiddleware(),
 			this.controller.update
 		);
 	}

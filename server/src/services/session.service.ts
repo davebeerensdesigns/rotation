@@ -13,7 +13,8 @@ const userService = UserService.getInstance();
 export class SessionService {
 	private static instance: SessionService;
 	
-	private constructor() {}
+	private constructor() {
+	}
 	
 	public static getInstance(): SessionService {
 		if (!SessionService.instance) {
@@ -24,13 +25,17 @@ export class SessionService {
 	
 	private getCollection() {
 		return MongoDatabase.getInstance()
-			.getTokensCollection();
+			.getSessionsCollection();
 	}
 	
 	public async verifySiweSignature(
-		message: string,
-		signature: string
-	): Promise<{ address: string; chainId: string }> {
+		{
+			message,
+			signature
+		}: {
+			message: string,
+			signature: string
+		}): Promise<{ address: string; chainId: string }> {
 		const address = getAddressFromMessage(message) as `0x${string}`;
 		const chainId = getChainIdFromMessage(message);
 		
@@ -53,57 +58,56 @@ export class SessionService {
 		};
 	}
 	
-	public async refreshAccessToken(refreshToken: string): Promise<{
+	public async refreshAccessToken({
+		userId,
+		visitorId,
+		chainId,
+		address,
+		sessionId,
+		role
+	}: {
+		userId: ObjectId;
+		visitorId: string;
+		sessionId: string;
+		chainId: string;
+		address: string;
+		role: string;
+	}): Promise<{
 		accessToken: string;
 		accessTokenExpires: number;
 	}> {
 		const sessions = this.getCollection();
-		const payload = await sessionUtils.verifyRefreshToken(refreshToken);
-		if (
-			!payload?.sub ||
-			!payload.sessionId ||
-			!payload.visitorId ||
-			!ObjectId.isValid(payload.sub) ||
-			!payload.chainId ||
-			!payload.address
-		) {
-			throw new Error('Invalid or expired refresh token');
-		}
-		
-		const userId = new ObjectId(payload.sub);
-		const sessionId = payload.sessionId;
-		const visitorId = payload.visitorId;
-		
-		const saved = await sessions.findOne({
-			userId,
-			visitorId,
-			sessionId
-		});
-		
-		const isValid = !!saved && saved.refreshToken === refreshToken;
-		
-		if (!isValid) {
-			throw new Error('Token mismatch or revoked');
-		}
 		
 		const user = await userService.getUserByUserId(userId);
 		if (!user || !user._id || !user.address) {
 			throw new Error('User not found');
 		}
 		
-		const accessToken = await sessionUtils.generateAccessToken(
-			user._id.toString(),
-			user.role,
+		const accessToken = await sessionUtils.generateAccessToken({
+			userId: user._id.toString(),
+			role,
 			sessionId,
 			visitorId,
-			payload.chainId,
-			user.address
-		);
+			chainId,
+			address
+		});
 		
 		const decoded = sessionUtils.decodeToken(accessToken);
 		if (!decoded?.exp) {
 			throw new Error('Access token is missing exp claim');
 		}
+		
+		await sessions.updateOne({
+				userId: user._id,
+				sessionId,
+				visitorId
+			},
+			{
+				$set: {
+					accessRotatedAt: new Date()
+				}
+			}
+		);
 		
 		return {
 			accessToken,
@@ -111,21 +115,17 @@ export class SessionService {
 		};
 	}
 	
-	public async findExactSession(accessToken: string): Promise<SessionEntity | null> {
+	public async findExactSessionByValues({
+		userId,
+		sessionId,
+		visitorId
+	}: {
+		userId: ObjectId;
+		sessionId: string;
+		visitorId: string;
+	}): Promise<SessionEntity | null> {
 		const sessions = this.getCollection();
-		const payload = await sessionUtils.verifyAccessToken(accessToken);
-		if (
-			!payload?.sub ||
-			!payload.sessionId ||
-			!payload.visitorId ||
-			!ObjectId.isValid(payload.sub)
-		) {
-			throw new Error('Invalid or expired refresh token');
-		}
 		
-		const userId = new ObjectId(payload.sub);
-		const sessionId = payload.sessionId;
-		const visitorId = payload.visitorId;
 		return sessions.findOne({
 			userId,
 			sessionId,
@@ -133,21 +133,16 @@ export class SessionService {
 		});
 	}
 	
-	public async logoutUserCurrentSession(accessToken: string): Promise<void> {
+	public async logoutUserCurrentSessionByAccessToken({
+		userId,
+		sessionId,
+		visitorId
+	}: {
+		userId: ObjectId;
+		sessionId: string;
+		visitorId: string;
+	}): Promise<void> {
 		const sessions = this.getCollection();
-		const payload = await sessionUtils.verifyAccessToken(accessToken);
-		if (
-			!payload?.sub ||
-			!payload.sessionId ||
-			!payload.visitorId ||
-			!ObjectId.isValid(payload.sub)
-		) {
-			throw new Error('Invalid or expired access token');
-		}
-		
-		const userId = new ObjectId(payload.sub);
-		const sessionId = payload.sessionId;
-		const visitorId = payload.visitorId;
 		
 		await sessions.deleteOne({
 			userId,
@@ -156,40 +151,30 @@ export class SessionService {
 		});
 	}
 	
-	public async getAllUserSessionsFromAccessTokenSub(accessToken: string): Promise<SessionEntity[] | null> {
+	public async getAllUserSessionsByUserId(userId: ObjectId): Promise<SessionEntity[] | null> {
 		const sessions = this.getCollection();
-		
-		let payload;
-		try {
-			payload = await sessionUtils.verifyAccessToken(accessToken);
-		} catch (err) {
-			return null;
-		}
-		
-		if (
-			!payload?.sub ||
-			!payload.sessionId ||
-			!payload.visitorId ||
-			!ObjectId.isValid(payload.sub)
-		) {
-			return null;
-		}
-		
-		const userId = new ObjectId(payload.sub);
 		const allSessions = await sessions.find({userId})
 			.toArray();
 		return allSessions ?? null;
 	}
 	
-	public async storeSession(
-		userId: ObjectId,
-		refreshToken: string,
-		chainId: string,
-		userAgent: string,
-		visitorId: string,
-		sessionId: string,
-		address: string
-	): Promise<void> {
+	public async storeSession({
+		userId,
+		sessionId,
+		visitorId,
+		chainId,
+		address,
+		userAgent,
+		refreshToken
+	}: {
+		userId: ObjectId;
+		refreshToken: string;
+		chainId: string;
+		userAgent: string;
+		visitorId: string;
+		sessionId: string;
+		address: string;
+	}): Promise<void> {
 		const sessions = this.getCollection();
 		await sessions.updateOne(
 			{

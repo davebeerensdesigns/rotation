@@ -6,6 +6,9 @@ export interface PublicClaims {
 	iat?: number;
 	exp?: number;
 	enc?: string;
+	token_type: 'access' | 'refresh';
+	iss: string;
+	aud: string;
 }
 
 export interface EncryptedClaims {

@@ -4,15 +4,16 @@ import {ResponseUtils} from '../utils/response.utils';
 import {UserService} from '../services/user.service';
 import {UserMapper} from '../mappers/user.mapper';
 import {userUpdateSchema} from '../schemas/user.schema';
-import {AuthRequest} from '../middlewares/access-token.middleware';
+import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {ObjectId} from 'mongodb';
+import {AccessAuthRequest} from '../middlewares/verify-access-token.middleware';
 
 const userService = UserService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
 export default class UserController {
 	async me(
-		req: AuthRequest,
+		req: AccessAuthRequest,
 		res: Response
 	): Promise<Response> {
 		
@@ -38,7 +39,7 @@ export default class UserController {
 	}
 	
 	async update(
-		req: AuthRequest,
+		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
 		
@@ -57,9 +58,10 @@ export default class UserController {
 		
 		const updateData = parsed.data;
 		
-		const updatedUser = await userService.findAndUpdateUser(userId,
-			updateData
-		);
+		const updatedUser = await userService.findAndUpdateUser({
+			userId,
+			data: updateData
+		});
 		
 		if (!updatedUser) {
 			return responseUtils.error(res,

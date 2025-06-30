@@ -7,6 +7,7 @@ export default class MongoDatabase {
 	private static instance: MongoDatabase;
 	private client: MongoClient;
 	private isConnected: boolean = false;
+	private readonly refreshTokenExpiry: number;
 	
 	private usersCollection?: Collection<UserEntity>;
 	private sessionsCollection?: Collection<SessionEntity>;
@@ -16,6 +17,9 @@ export default class MongoDatabase {
 			throw new Error('Missing MongoDB configuration. Check your .env file.');
 		}
 		this.client = new MongoClient(MONGODB_URI);
+		this.refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY || '86400',
+			10
+		);
 	}
 	
 	public static getInstance(): MongoDatabase {
@@ -51,6 +55,8 @@ export default class MongoDatabase {
 		
 		this.isConnected = true;
 		console.log('MongoDB connected and collections initialized');
+		
+		await this.deleteExpiredSession();
 	}
 	
 	public getUsersCollection(): Collection<UserEntity> {
@@ -60,10 +66,21 @@ export default class MongoDatabase {
 		return this.usersCollection;
 	}
 	
-	public getTokensCollection(): Collection<SessionEntity> {
+	public getSessionsCollection(): Collection<SessionEntity> {
 		if (!this.sessionsCollection) {
 			throw new Error('MongoDatabase not connected: sessionsCollection is undefined');
 		}
 		return this.sessionsCollection;
+	}
+	
+	private async deleteExpiredSession(): Promise<void> {
+		const expiryDate = new Date(Date.now() - this.refreshTokenExpiry * 1000);
+		
+		const sessions = this.getSessionsCollection();
+		const result = await sessions.deleteMany({
+			createdAt: {$lt: expiryDate}
+		});
+		
+		console.log(`[SessionService] Cleaned up ${result.deletedCount} expired sessions`);
 	}
 }

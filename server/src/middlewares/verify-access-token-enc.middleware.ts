@@ -2,6 +2,7 @@ import {Request, Response, NextFunction} from 'express';
 import {SessionUtils} from '../utils/session.utils';
 import {SessionService} from '../services/session.service';
 import {ResponseUtils} from '../utils/response.utils';
+import {ObjectId} from 'mongodb';
 
 const sessionUtils = SessionUtils.getInstance();
 const sessionService = SessionService.getInstance();
@@ -9,24 +10,21 @@ const responseUtils = ResponseUtils.getInstance();
 
 export interface AuthPayload {
 	userId: string;
+	role: string;
+	chainId: string;
+	address: string;
 	sessionId: string;
 	visitorId: string;
-	role: string;
 	accessToken: string;
-	chainId: string;
 }
 
-export interface AuthRequest extends Request {
+export interface AccessEncAuthRequest extends Request {
 	auth?: AuthPayload;
 }
 
-/**
- * Middleware to validate access token and optionally check session in DB.
- * @param checkSessionInDb Whether to validate the session against the DB
- */
-export function accessTokenMiddleware(checkSessionInDb = false) {
+export function verifyAccessTokenEncMiddleware() {
 	return async (
-		req: AuthRequest,
+		req: AccessEncAuthRequest,
 		res: Response,
 		next: NextFunction
 	) => {
@@ -39,13 +37,14 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 				);
 			}
 			
-			const payload = await sessionUtils.verifyAccessToken(accessToken);
+			const verified = await sessionUtils.verifyAccessTokenAndDecryptEnc(accessToken);
 			if (
-				!payload?.sub ||
-				!payload.sessionId ||
-				!payload.visitorId ||
-				!payload.role ||
-				!payload.chainId
+				!verified?.sub ||
+				!verified.address ||
+				!verified.role ||
+				!verified.chainId ||
+				!verified.sessionId ||
+				!verified.visitorId
 			) {
 				return responseUtils.error(res,
 					{error: 'Invalid access token payload'},
@@ -53,30 +52,26 @@ export function accessTokenMiddleware(checkSessionInDb = false) {
 				);
 			}
 			
-			const userId = payload.sub;
-			const sessionId = payload.sessionId;
-			const visitorId = payload.visitorId;
-			const role = payload.role;
-			const chainId = payload.chainId;
+			const session = await sessionService.findExactSessionByValues({
+				userId: new ObjectId(verified.sub),
+				sessionId: verified.sessionId,
+				visitorId: verified.visitorId
+			});
 			
-			if (checkSessionInDb) {
-				const session = await sessionService.findExactSession(accessToken);
-				if (!session || session.chainId !== payload.chainId) {
-					return responseUtils.error(res,
-						{error: 'Invalid session or chainId mismatch'},
-						401
-					);
-				}
+			if (!session) {
+				return responseUtils.error(res,
+					{error: 'No session found'},
+					401
+				);
 			}
-			
-			// Attach to req for use in controller
 			req.auth = {
-				userId,
-				sessionId,
-				visitorId,
-				role,
-				accessToken,
-				chainId
+				userId: verified.sub,
+				role: verified.role,
+				chainId: verified.chainId,
+				address: verified.address,
+				sessionId: verified.sessionId,
+				visitorId: verified.visitorId,
+				accessToken
 			};
 			
 			next();

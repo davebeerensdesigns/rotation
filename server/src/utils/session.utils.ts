@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import {compactDecrypt, CompactEncrypt, JWTPayload, jwtVerify, SignJWT} from 'jose';
 import {Request} from 'express';
-import {JwtPayload} from '../types/jwt';
+import {JwtPayload, PublicClaims} from '../types/jwt';
 
 dotenv.config();
 
@@ -59,10 +59,13 @@ export class SessionUtils {
 		return authHeader.split(' ')[1];
 	}
 	
-	private async generateTokenPayload(
-		sessionId: string,
-		visitorId: string
-	): Promise<string> {
+	private async generateTokenPayload({
+		sessionId,
+		visitorId
+	}: {
+		sessionId: string;
+		visitorId: string;
+	}): Promise<string> {
 		const innerPayload = JSON.stringify({
 			sessionId,
 			visitorId
@@ -76,16 +79,25 @@ export class SessionUtils {
 			.encrypt(this.encryptionSecret);
 	}
 	
-	public async generateAccessToken(
-		userId: string,
-		role: string,
-		sessionId: string,
-		visitorId: string,
-		chainId: string,
-		address: string
-	): Promise<string> {
-		const encryptedInner = await this.generateTokenPayload(sessionId,
-			visitorId
+	public async generateAccessToken({
+		userId,
+		sessionId,
+		visitorId,
+		chainId,
+		address,
+		role
+	}: {
+		userId: string;
+		role: string;
+		sessionId: string;
+		visitorId: string;
+		chainId: string;
+		address: string;
+	}): Promise<string> {
+		const encryptedInner = await this.generateTokenPayload({
+				sessionId,
+				visitorId
+			}
 		);
 		
 		return await new SignJWT({
@@ -93,7 +105,10 @@ export class SessionUtils {
 			chainId,
 			role,
 			address,
-			enc: encryptedInner
+			enc: encryptedInner,
+			token_type: 'access',
+			iss: 'auth-service',
+			aud: 'api-gateway'
 		})
 			.setProtectedHeader({alg: 'HS256'})
 			.setIssuedAt()
@@ -101,24 +116,35 @@ export class SessionUtils {
 			.sign(this.accessSecret);
 	}
 	
-	public async generateTokens(
-		userId: string,
-		role: string,
-		sessionId: string,
-		visitorId: string,
-		chainId: string,
-		address: string
-	): Promise<{ accessToken: string; refreshToken: string }> {
-		const encryptedInner = await this.generateTokenPayload(sessionId,
+	public async generateTokens({
+		userId,
+		sessionId,
+		visitorId,
+		chainId,
+		role,
+		address
+	}: {
+		userId: string;
+		role: string;
+		sessionId: string;
+		visitorId: string;
+		chainId: string;
+		address: string;
+	}): Promise<{ accessToken: string; refreshToken: string }> {
+		const encryptedInner = await this.generateTokenPayload({
+			sessionId,
 			visitorId
-		);
+		});
 		
 		const accessToken = await new SignJWT({
 			sub: userId,
 			chainId,
 			role,
 			address,
-			enc: encryptedInner
+			enc: encryptedInner,
+			token_type: 'access',
+			iss: 'auth-service',
+			aud: 'api-gateway'
 		})
 			.setProtectedHeader({alg: 'HS256'})
 			.setIssuedAt()
@@ -130,7 +156,10 @@ export class SessionUtils {
 			chainId,
 			role,
 			address,
-			enc: encryptedInner
+			enc: encryptedInner,
+			token_type: 'access',
+			iss: 'auth-service',
+			aud: 'api-gateway'
 		})
 			.setProtectedHeader({alg: 'HS256'})
 			.setIssuedAt()
@@ -143,7 +172,18 @@ export class SessionUtils {
 		};
 	}
 	
-	public async verifyAccessToken(token: string): Promise<JwtPayload | null> {
+	public async verifyAccessToken(token: string): Promise<PublicClaims | null> {
+		try {
+			const {payload} = await jwtVerify(token,
+				this.accessSecret
+			);
+			return payload as unknown as PublicClaims;
+		} catch {
+			return null;
+		}
+	}
+	
+	public async verifyAccessTokenAndDecryptEnc(token: string): Promise<JwtPayload | null> {
 		try {
 			const {payload} = await jwtVerify(token,
 				this.accessSecret
@@ -155,7 +195,7 @@ export class SessionUtils {
 		}
 	}
 	
-	public async verifyRefreshToken(token: string): Promise<JwtPayload | null> {
+	public async verifyRefreshTokenAndDecryptEnc(token: string): Promise<JwtPayload | null> {
 		try {
 			const {payload} = await jwtVerify(token,
 				this.refreshSecret

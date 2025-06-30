@@ -10,6 +10,8 @@ import {UserMapper} from '../mappers/user.mapper';
 import {ObjectId} from 'mongodb';
 import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
+import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
+import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
 
 const sessionUtils = SessionUtils.getInstance();
 const userService = UserService.getInstance();
@@ -62,10 +64,10 @@ export default class SessionController {
 			const {
 				address,
 				chainId
-			} = await sessionService.verifySiweSignature(
+			} = await sessionService.verifySiweSignature({
 				message,
 				signature
-			);
+			});
 			
 			// Parse address and chainId
 			const parsed = userCreateSchema.safeParse({
@@ -94,14 +96,14 @@ export default class SessionController {
 			const {
 				accessToken,
 				refreshToken
-			} = await sessionUtils.generateTokens(
-				user._id.toString(),
-				user.role,
+			} = await sessionUtils.generateTokens({
+				userId: user._id.toString(),
+				role: user.role,
 				sessionId,
 				visitorId,
 				chainId,
 				address
-			);
+			});
 			
 			// Decode accessToken to get token exp
 			const decodedAccess = sessionUtils.decodeToken(accessToken);
@@ -112,15 +114,15 @@ export default class SessionController {
 			const refreshTokenExpires = decodedRefresh?.exp;
 			
 			// Store the session in database
-			await sessionService.storeSession(
-				user._id,
+			await sessionService.storeSession({
+				userId: user._id,
 				refreshToken,
 				chainId,
 				userAgent,
 				visitorId,
 				sessionId,
 				address
-			);
+			});
 			
 			return responseUtils.success(res,
 				{
@@ -142,61 +144,74 @@ export default class SessionController {
 	}
 	
 	async session(
-		req: Request,
+		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
+		const sessionId = req.auth!.sessionId;
+		const visitorId = req.auth!.visitorId;
+		if (sessionId && visitorId) {
+			return responseUtils.success(res,
+				{valid: true}
+			);
+		}
+		return responseUtils.error(res,
+			{error: 'No session found'},
+			401
+		);
+	}
+	
+	async sessionAll(
+		req: AccessEncAuthRequest,
+		res: Response
+	): Promise<Response> {
+		const userId = req.auth!.userId;
+		
 		try {
-			// Take accessToken from bearer header
-			const accessToken = sessionUtils.extractBearerToken(req);
-			if (!accessToken) {
+			const sessions = await sessionService.getAllUserSessionsByUserId(new ObjectId(userId));
+			if (sessions === null) {
 				return responseUtils.error(res,
-					{error: 'Missing access token'},
-					401
-				);
-			}
-			
-			// Find the exact user session by userId, sessionId and visitorId
-			const session = await sessionService.findExactSession(accessToken);
-			
-			if (!session) {
-				return responseUtils.error(res,
-					{error: 'SessionEntity not found or revoked'},
+					{error: 'Invalid or expired access token'},
 					401
 				);
 			}
 			
 			return responseUtils.success(res,
-				{valid: true}
+				SessionMapper.toResponseArray(sessions)
 			);
+			
 		} catch (err: any) {
 			return responseUtils.error(res,
-				{error: err.message},
+				{error: 'Unexpected error retrieving sessions'},
 				500
 			);
 		}
 	}
 	
 	async refresh(
-		req: Request,
+		req: RefreshEncAuthRequest,
 		res: Response
 	): Promise<Response> {
-		// Take refreshToken from bearer header
-		const refreshToken = sessionUtils.extractBearerToken(req);
-		if (!refreshToken) {
-			return responseUtils.error(res,
-				{
-					error: 'Missing refreshToken'
-				},
-				400
-			);
-		}
+		
+		const userId = req.auth!.userId;
+		const visitorId = req.auth!.visitorId;
+		const sessionId = req.auth!.sessionId;
+		const address = req.auth!.address;
+		const chainId = req.auth!.chainId;
+		const role = req.auth!.role;
 		
 		try {
 			// Verify refreshToken and generate new accessToken
 			const {
 				accessToken,
 				accessTokenExpires
-			} = await sessionService.refreshAccessToken(refreshToken);
+			} = await sessionService.refreshAccessToken({
+				userId: new ObjectId(userId),
+				visitorId,
+				sessionId,
+				chainId,
+				address,
+				role
+			});
 			
 			return responseUtils.success(res,
 				{
@@ -215,23 +230,21 @@ export default class SessionController {
 	}
 	
 	async logout(
-		req: Request,
+		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
 		// Take accessToken from bearer header
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{
-					error: 'Authorization header missing or malformed'
-				},
-				401
-			);
-		}
+		const userId = new ObjectId(req.auth!.userId);
+		const sessionId = req.auth!.sessionId;
+		const visitorId = req.auth!.visitorId;
 		
 		try {
 			// Logout user current session
-			await sessionService.logoutUserCurrentSession(accessToken);
+			await sessionService.logoutUserCurrentSessionByAccessToken({
+				userId,
+				sessionId,
+				visitorId
+			});
 			return responseUtils.success(res,
 				{success: true}
 			);
@@ -241,39 +254,6 @@ export default class SessionController {
 					error: err.message
 				},
 				401
-			);
-		}
-	}
-	
-	async sessionAll(
-		req: Request,
-		res: Response
-	): Promise<Response> {
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		try {
-			const sessions = await sessionService.getAllUserSessionsFromAccessTokenSub(accessToken);
-			if (sessions === null) {
-				return responseUtils.error(res,
-					{error: 'Invalid or expired access token'},
-					401
-				);
-			}
-			
-			return responseUtils.success(res,
-				SessionMapper.toResponseArray(sessions)
-			);
-			
-		} catch (err: any) {
-			return responseUtils.error(res,
-				{error: 'Unexpected error retrieving sessions'},
-				500
 			);
 		}
 	}

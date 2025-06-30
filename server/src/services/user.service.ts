@@ -58,10 +58,13 @@ export class UserService {
 		return await users.findOne({_id: userId});
 	}
 	
-	public async findAndUpdateUser(
+	public async findAndUpdateUser({
+		userId,
+		data
+	}: {
 		userId: ObjectId,
 		data: UserUpdateDto
-	): Promise<WithId<UserEntity> | null> {
+	}): Promise<WithId<UserEntity> | null> {
 		const users = this.getCollection();
 		
 		const update: UpdateFilter<UserEntity> = {$set: data};
