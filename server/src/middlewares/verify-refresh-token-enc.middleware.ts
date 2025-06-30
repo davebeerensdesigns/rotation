@@ -58,7 +58,8 @@ export function verifyRefreshTokenEncMiddleware() {
 				visitorId: verified.visitorId
 			});
 			
-			const isValid = !!session && session.refreshToken === refreshToken;
+			const hashedInputToken = sessionUtils.hashToken(refreshToken);
+			const isValid = !!session && session.refreshToken === hashedInputToken;
 			
 			if (!isValid) {
 				return responseUtils.error(res,

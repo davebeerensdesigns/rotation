@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import {compactDecrypt, CompactEncrypt, JWTPayload, jwtVerify, SignJWT} from 'jose';
 import {Request} from 'express';
 import {JwtPayload, PublicClaims} from '../types/jwt';
+import {createHash} from 'node:crypto';
 
 dotenv.config();
 
@@ -57,6 +58,12 @@ export class SessionUtils {
 		const authHeader = req.headers.authorization;
 		if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
 		return authHeader.split(' ')[1];
+	}
+	
+	public hashToken(token: string): string {
+		return createHash('sha256')
+			.update(token)
+			.digest('hex');
 	}
 	
 	private async generateTokenPayload({

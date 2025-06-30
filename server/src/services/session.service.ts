@@ -176,6 +176,7 @@ export class SessionService {
 		address: string;
 	}): Promise<void> {
 		const sessions = this.getCollection();
+		const hashedRefresh = sessionUtils.hashToken(refreshToken);
 		await sessions.updateOne(
 			{
 				userId,
@@ -184,7 +185,7 @@ export class SessionService {
 			},
 			{
 				$set: {
-					refreshToken,
+					refreshToken: hashedRefresh,
 					userAgent,
 					sessionId,
 					visitorId,
