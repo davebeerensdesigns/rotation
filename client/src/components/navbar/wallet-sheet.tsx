@@ -16,8 +16,11 @@ export const WalletSheet = (): JSX.Element => {
 	
 	const handleLogout = async () => {
 		try {
+			await signOut({
+				redirect: true,
+				redirectTo: window.location.origin
+			});
 			await disconnect();
-			await signOut({redirect: false});
 			setOpen(false);
 		} catch (err) {
 			setOpen(false);

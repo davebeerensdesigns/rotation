@@ -133,7 +133,7 @@ export class SessionService {
 		});
 	}
 	
-	public async logoutUserCurrentSessionByAccessToken({
+	public async logoutUserCurrentSessionByValues({
 		userId,
 		sessionId,
 		visitorId

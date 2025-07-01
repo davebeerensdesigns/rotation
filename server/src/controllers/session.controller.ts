@@ -12,6 +12,7 @@ import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
+import {JWTPayload} from 'jose';
 
 const sessionUtils = SessionUtils.getInstance();
 const userService = UserService.getInstance();
@@ -35,7 +36,6 @@ export default class SessionController {
 		res: Response
 	): Promise<Response> {
 		try {
-			// Take data from body
 			const {
 				message,
 				signature,
@@ -60,7 +60,6 @@ export default class SessionController {
 				);
 			}
 			
-			// Verify message and signature
 			const {
 				address,
 				chainId
@@ -69,7 +68,6 @@ export default class SessionController {
 				signature
 			});
 			
-			// Parse address and chainId
 			const parsed = userCreateSchema.safeParse({
 				address
 			});
@@ -84,15 +82,12 @@ export default class SessionController {
 				);
 			}
 			
-			// Find or create the user
 			const user = await userService.findOrCreateUser(
 				address
 			);
 			
-			// Create a random sessionId
 			const sessionId = new ObjectId().toString();
 			
-			// Generate accessToken and refreshToken
 			const {
 				accessToken,
 				refreshToken
@@ -105,15 +100,12 @@ export default class SessionController {
 				address
 			});
 			
-			// Decode accessToken to get token exp
 			const decodedAccess = sessionUtils.decodeToken(accessToken);
 			const accessTokenExpires = decodedAccess?.exp;
 			
-			// Decode refreshToken to get token exp
 			const decodedRefresh = sessionUtils.decodeToken(refreshToken);
 			const refreshTokenExpires = decodedRefresh?.exp;
 			
-			// Store the session in database
 			await sessionService.storeSession({
 				userId: user._id,
 				refreshToken,
@@ -200,7 +192,6 @@ export default class SessionController {
 		const role = req.auth!.role;
 		
 		try {
-			// Verify refreshToken and generate new accessToken
 			const {
 				accessToken,
 				accessTokenExpires
@@ -230,17 +221,26 @@ export default class SessionController {
 	}
 	
 	async logout(
-		req: AccessEncAuthRequest,
+		req: Request,
 		res: Response
 	): Promise<Response> {
-		// Take accessToken from bearer header
-		const userId = new ObjectId(req.auth!.userId);
-		const sessionId = req.auth!.sessionId;
-		const visitorId = req.auth!.visitorId;
+		const accessToken = sessionUtils.extractBearerToken(req);
+		if (!accessToken) {
+			return responseUtils.error(res,
+				{error: 'Missing or malformed Authorization header'},
+				401
+			);
+		}
+		const payload = sessionUtils.decodeToken(accessToken);
+		const decodedPayload = payload as unknown as JWTPayload;
+		const enc = await sessionUtils.decryptNestedPayload(decodedPayload);
+		
+		const userId = new ObjectId(payload?.sub);
+		const sessionId = enc.sessionId;
+		const visitorId = enc.visitorId;
 		
 		try {
-			// Logout user current session
-			await sessionService.logoutUserCurrentSessionByAccessToken({
+			await sessionService.logoutUserCurrentSessionByValues({
 				userId,
 				sessionId,
 				visitorId
@@ -253,7 +253,7 @@ export default class SessionController {
 				{
 					error: err.message
 				},
-				401
+				500
 			);
 		}
 	}

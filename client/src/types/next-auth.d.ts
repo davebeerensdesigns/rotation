@@ -18,7 +18,6 @@ declare module 'next-auth' {
 	}
 	
 	interface User extends DefaultUser {
-		// Wel in User, want deze komt uit authorize()
 		userId: string;
 		address: string;
 		chainId: string;

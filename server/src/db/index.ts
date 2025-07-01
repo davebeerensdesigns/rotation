@@ -38,7 +38,6 @@ export default class MongoDatabase {
 		this.usersCollection = db.collection<UserEntity>('users');
 		this.sessionsCollection = db.collection<SessionEntity>('sessions');
 		
-		// Unique session identification
 		await this.sessionsCollection.createIndex(
 			{
 				userId: 1,

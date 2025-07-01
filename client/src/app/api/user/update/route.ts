@@ -1,8 +1,8 @@
-import {auth} from '@/auth'; // uit je middleware-config, dus werkt
+import {auth} from '@/auth';
 import {NextResponse} from 'next/server';
 
 export async function PATCH(req: Request) {
-	const session = await auth(); // hiermee krijg je de sessie (JWT-strategie)
+	const session = await auth();
 	
 	if (!session || !session.user?.accessToken) {
 		return NextResponse.json({error: 'Unauthorized'},

@@ -226,7 +226,7 @@ export class SessionUtils {
 		}
 	}
 	
-	private async decryptNestedPayload(payload: JWTPayload): Promise<Record<string, any>> {
+	public async decryptNestedPayload(payload: JWTPayload): Promise<Record<string, any>> {
 		const enc = payload.enc as string;
 		if (!enc) throw new Error('Missing encrypted session payload');
 		

@@ -1,27 +1,48 @@
+'use client';
 import {Button} from '@/components/ui/button';
-import {Menu} from 'lucide-react';
-import {Logo} from './logo';
-import {NavMenu} from './nav-menu';
+import {Home, Menu, Settings, User} from 'lucide-react';
 import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/sheet';
+import Link from 'next/link';
+import {useState} from 'react';
+import {useSession} from 'next-auth/react';
 
 export const NavigationSheet = () => {
+	const [open, setOpen] = useState(false);
+	const {status} = useSession();
 	return (
-		<Sheet>
+		<Sheet open={open} onOpenChange={setOpen}>
 			<SheetTrigger asChild>
 				<Button variant="outline" size="icon" className="rounded-full">
 					<Menu/>
 				</Button>
 			</SheetTrigger>
-			<SheetContent>
+			<SheetContent className="w-[320px] p-6">
 				<SheetTitle>Main menu</SheetTitle>
-				<Logo/>
-				<NavMenu orientation="vertical" className="mt-12"/>
-				
-				<div className="mt-8 space-y-4">
-					<Button variant="outline" className="w-full sm:hidden">
-						Sign In
-					</Button>
-					<Button className="w-full xs:hidden">Get Started</Button>
+				<div className="space-y-6">
+					<div className="space-y-1">
+						<Button variant="ghost" className="w-full justify-start text-sm" asChild>
+							<Link href="/" onClick={() => setOpen(false)}>
+								<Home className="h-4 w-4 mr-2"/> Home
+							</Link>
+						</Button>
+						{
+							status === 'authenticated' && (
+								<>
+									<Button variant="ghost" className="w-full justify-start text-sm" asChild>
+										<Link href="/profile" onClick={() => setOpen(false)}>
+											<User className="h-4 w-4 mr-2"/> View Profile
+										</Link>
+									</Button>
+									<Button variant="ghost" className="w-full justify-start text-sm" asChild>
+										<Link href="/profile/settings" onClick={() => setOpen(false)}>
+											<Settings className="h-4 w-4 mr-2"/> Settings
+										</Link>
+									</Button>
+								</>
+							)
+						}
+					
+					</div>
 				</div>
 			</SheetContent>
 		</Sheet>
