@@ -5,8 +5,10 @@ import {fetchUserProfileData} from '@/services/user.service';
 import {UserData} from '@/types/user';
 import {UserInfoList} from '@/components/data/user-info-list';
 import {LoaderIndicator} from '@/components/loading/component-loader';
+import {useApiFetch} from '@/lib/api-fetch';
 
 export function BackendDataColumn({refreshTrigger}: { refreshTrigger: number }) {
+	const apiFetch = useApiFetch();
 	const [data, setData] = useState<UserData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -15,14 +17,12 @@ export function BackendDataColumn({refreshTrigger}: { refreshTrigger: number }) 
 			const fetchData = async () => {
 				setLoading(true);
 				try {
-					const {
-						user,
-						chainId
-					} = await fetchUserProfileData();
-					if (user && chainId) {
+					const data = await fetchUserProfileData(apiFetch);
+					
+					if (data && data.user && data.chainId) {
 						setData({
-							...user,
-							chainId
+							...data.user,
+							...data.chainId
 						});
 						setError(null);
 					} else {

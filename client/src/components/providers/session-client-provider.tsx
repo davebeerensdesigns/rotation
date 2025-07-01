@@ -13,7 +13,7 @@ export default function SessionClientProvider({
 	session: Session | null
 }) {
 	return (
-		<SessionProvider session={session}>
+		<SessionProvider session={session} refetchInterval={120}>
 			<SessionWatcher/>
 			{children}
 		</SessionProvider>

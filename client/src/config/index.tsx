@@ -6,9 +6,9 @@ import {
 	type SIWEVerifyMessageArgs
 } from '@reown/appkit-siwe';
 import {WagmiAdapter} from '@reown/appkit-adapter-wagmi';
-import {getSession, signIn, signOut, useSession} from 'next-auth/react';
+import {getSession, signIn, signOut} from 'next-auth/react';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import {AppKitNetwork, arbitrum, mainnet, optimism, ham} from '@reown/appkit/networks';
+import {AppKitNetwork, arbitrum, mainnet, optimism} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
 
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
@@ -21,10 +21,11 @@ export const metadata = {
 	icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
-export const chains = [mainnet,
+export const chains = [
+	mainnet,
 	arbitrum,
-	optimism,
-	ham] as [
+	optimism
+] as [
 	AppKitNetwork,
 	...AppKitNetwork[]
 ];
@@ -52,17 +53,15 @@ const normalizeAddress = (address: string): string => {
 	}
 };
 
+let isLoggingOut = false;
+
 export const siweConfig = createSIWEConfig({
-	/**
-	 * Provides parameters for creating a SIWE message.
-	 */
 	getMessageParams: async () => ({
 		domain: typeof window !== 'undefined' ? window.location.host : '',
 		uri: typeof window !== 'undefined' ? window.location.origin : '',
 		chains: chains.map((chain: AppKitNetwork) => parseInt(chain.id.toString())),
 		statement: 'Please sign with your account'
 	}),
-	
 	createMessage: ({
 		address,
 		...args
@@ -89,20 +88,6 @@ export const siweConfig = createSIWEConfig({
 		}
 		
 		if (session.error === 'RefreshAccessTokenError') {
-			if (session?.user.accessToken) {
-				await fetch('http://localhost:3001/api/session/logout',
-					{
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${session?.user.accessToken}`,
-							'Content-Type': 'application/json'
-						}
-					}
-				);
-			}
-			await signOut({
-				redirect: false
-			});
 			return null;
 		}
 		
@@ -140,27 +125,23 @@ export const siweConfig = createSIWEConfig({
 		}
 	},
 	signOut: async (): Promise<boolean> => {
-		try {
-			const {data: session} = useSession();
-			if (session?.user.accessToken) {
-				await fetch('http://localhost:3001/api/session/logout',
-					{
-						method: 'POST',
-						headers: {
-							'Authorization': `Bearer ${session?.user.accessToken}`,
-							'Content-Type': 'application/json'
-						}
-					}
-				);
+		if (isLoggingOut) return false;
+		isLoggingOut = true;
+		
+		const session = await getSession();
+		if (session) {
+			try {
+				await signOut({
+					redirect: true,
+					redirectTo: '/'
+				});
+				return true;
+			} catch {
+				return false;
 			}
-			await signOut({
-				redirect: true,
-				redirectTo: window.location.origin
-			});
-			return true;
-		} catch {
-			return false;
 		}
+		
+		return true;
 	},
 	signOutOnDisconnect: true,
 	signOutOnNetworkChange: true,

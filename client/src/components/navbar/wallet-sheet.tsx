@@ -7,7 +7,7 @@ import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 import {LogOut, Pencil, Settings, User} from 'lucide-react';
 import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
-import {signOut, useSession} from 'next-auth/react';
+import {useSession} from 'next-auth/react';
 
 export const WalletSheet = (): JSX.Element => {
 	const {data: session} = useSession();
@@ -16,10 +16,6 @@ export const WalletSheet = (): JSX.Element => {
 	
 	const handleLogout = async () => {
 		try {
-			await signOut({
-				redirect: true,
-				redirectTo: window.location.origin
-			});
 			await disconnect();
 			setOpen(false);
 		} catch (err) {

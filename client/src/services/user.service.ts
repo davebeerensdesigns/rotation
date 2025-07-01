@@ -1,6 +1,6 @@
-export async function fetchUserProfileData(): Promise<any | null> {
+export async function fetchUserProfileData(apiFetch: typeof fetch): Promise<any | null> {
 	try {
-		const res = await fetch('/api/user/me',
+		const res = await apiFetch('/api/user/me',
 			{
 				method: 'GET',
 				headers: {
@@ -8,12 +8,10 @@ export async function fetchUserProfileData(): Promise<any | null> {
 				}
 			}
 		);
-		if (!res.ok) {
-			return null;
-		}
+		
+		if (!res.ok) return null;
 		
 		const {data} = await res.json();
-		
 		return data;
 	} catch (err) {
 		return null;
@@ -21,6 +19,7 @@ export async function fetchUserProfileData(): Promise<any | null> {
 }
 
 export async function updateUserProfile(
+	apiFetch: typeof fetch,
 	updateFn: (data: any) => Promise<any>,
 	{
 		email,
@@ -33,7 +32,7 @@ export async function updateUserProfile(
 	}
 ): Promise<boolean> {
 	try {
-		const res = await fetch('/api/user/update',
+		const res = await apiFetch('/api/user/update',
 			{
 				method: 'PATCH',
 				headers: {
@@ -47,9 +46,7 @@ export async function updateUserProfile(
 			}
 		);
 		
-		if (!res.ok) {
-			return false;
-		}
+		if (!res.ok) return false;
 		
 		await updateFn({
 			user: {

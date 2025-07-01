@@ -6,7 +6,7 @@ export default async function ProfilePage() {
 	return (
 		<>
 			<h1 className="my-6 text-3xl sm:text-xl md:text-2xl md:leading-[1.2] font-bold">
-				Homepage
+				Profile
 			</h1>
 			{session ? (
 				<DataWrapper/>

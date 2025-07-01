@@ -42,6 +42,10 @@ export const {
 				token.picture = session.user.picture ?? token.picture ?? null;
 			}
 			
+			if (trigger === 'update' && session?.error) {
+				token.error = session.error ?? token.error ?? undefined;
+			}
+			
 			if (user) {
 				token.userId = user.userId;
 				token.address = user.address;
@@ -123,6 +127,35 @@ export const {
 			session.user.picture = token.picture ?? null;
 			
 			return session;
+		}
+	},
+	events: {
+		async signOut(message) {
+			if ('token' in message && message.token) {
+				const {
+					accessToken
+				} = message.token;
+				
+				try {
+					if (accessToken) {
+						await fetch('http://localhost:3001/api/session/logout',
+							{
+								method: 'POST',
+								headers: {
+									'Authorization': `Bearer ${accessToken}`,
+									'Content-Type': 'application/json'
+								}
+							}
+						);
+					}
+					
+					console.log('[signOut] JWT session revoked');
+				} catch (e) {
+					console.error('[signOut] Revoke failed',
+						e
+					);
+				}
+			}
 		}
 	}
 });

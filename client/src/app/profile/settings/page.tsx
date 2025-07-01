@@ -6,6 +6,7 @@ import {UAParser} from 'ua-parser-js';
 import {fetchUserSessionsData} from '@/services/session.service';
 import {LoaderIndicator} from '@/components/loading/component-loader';
 import {UserSession} from '@/types/user';
+import {useApiFetch} from '@/lib/api-fetch';
 
 export default function ProfileSettings(): JSX.Element {
 	const {
@@ -14,13 +15,13 @@ export default function ProfileSettings(): JSX.Element {
 	} = useSession();
 	const [sessionsData, setSessionsData] = useState<UserSession[] | null>(null);
 	const [loading, setLoading] = useState(true);
-	
+	const apiFetch = useApiFetch();
 	useEffect(() => {
 			if (status !== 'authenticated') return;
 			
 			const fetchData = async () => {
 				try {
-					const sessions = await fetchUserSessionsData();
+					const sessions = await fetchUserSessionsData(apiFetch);
 					if (sessions) setSessionsData(sessions);
 				} catch (e) {
 					console.error('[Fetch user sessions]',

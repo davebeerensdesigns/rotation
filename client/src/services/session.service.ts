@@ -71,9 +71,10 @@ export async function verifySIWEAuth({
 	}
 }
 
-export async function fetchUserSessionsData(): Promise<any[] | null> {
+export async function fetchUserSessionsData(
+	apiFetch: typeof fetch): Promise<any[] | null> {
 	try {
-		const res = await fetch('/api/session/all',
+		const res = await apiFetch('/api/session/all',
 			{
 				method: 'GET',
 				headers: {
