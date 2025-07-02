@@ -9,6 +9,8 @@ import {ThemeProvider} from '@/components/providers/theme-provider';
 import SessionClientProvider from '@/components/providers/session-client-provider';
 import {auth} from '@/auth';
 import {NavbarShell} from '@/components/navbar/navbar-shell';
+import {Toaster} from 'sonner';
+import {ToastTrigger} from '@/components/toast/toast-trigger';
 
 const geistSans = Geist({
 	subsets: ['latin']
@@ -36,6 +38,8 @@ export default async function RootLayout({
 		<SessionClientProvider session={session}>
 			<AppKitProvider initialState={initialState}>
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+					<Toaster/>
+					<ToastTrigger/>
 					<NavbarShell/>
 					<main className="pt-16 xs:pt-20 sm:pt-24 max-w-screen-xl mx-auto">
 						{children}

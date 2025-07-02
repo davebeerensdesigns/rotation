@@ -6,33 +6,42 @@ import {UserData} from '@/types/user';
 import {UserInfoList} from '@/components/data/user-info-list';
 import {LoaderIndicator} from '@/components/loading/component-loader';
 import {useApiFetch} from '@/lib/api-fetch';
+import {toast} from 'sonner';
 
 export function BackendDataColumn({refreshTrigger}: { refreshTrigger: number }) {
 	const apiFetch = useApiFetch();
 	const [data, setData] = useState<UserData | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	
 	useEffect(() => {
 			const fetchData = async () => {
-				setLoading(true);
 				try {
-					const data = await fetchUserProfileData(apiFetch);
+					const profile = await fetchUserProfileData(apiFetch,
+						(msg) => {
+							setErrorMessage(msg); // UI feedback
+							toast.error(msg);     // toast
+						}
+					);
 					
-					if (data && data.user && data.chainId) {
+					if (profile && profile.user && profile.chainId) {
 						setData({
-							...data.user,
-							...data.chainId
+							...profile.user,
+							chainId: profile.chainId
 						});
-						setError(null);
-					} else {
-						setError('Incomplete data');
+						setErrorMessage(null); // reset
+					} else if (!errorMessage) {
+						const fallback = 'Incomplete profile data';
+						setErrorMessage(fallback);
+						toast.error(fallback);
 					}
 				} catch (err) {
-					console.error('[Fetch error]',
+					console.error('[Fetch user profile]',
 						err
 					);
-					setError('Could not load backend data');
+					const fallback = 'Unexpected error occurred while loading profile';
+					setErrorMessage(fallback);
+					toast.error(fallback);
 				} finally {
 					setLoading(false);
 				}
@@ -43,13 +52,18 @@ export function BackendDataColumn({refreshTrigger}: { refreshTrigger: number }) 
 		[refreshTrigger]
 	);
 	
-	if (loading) return <LoaderIndicator label="Loading backend data..."/>;
-	if (error) return <p className="text-red-500">{error}</p>;
-	
 	return (
 		<div>
 			<h2 className="font-bold mb-2">Backend Data</h2>
-			<UserInfoList data={data!}/>
+			{loading ? (
+				<LoaderIndicator label="Loading backend data..."/>
+			) : errorMessage ? (
+				<p>{errorMessage}</p>
+			) : !data ? (
+				<p>No profile data available.</p>
+			) : (
+				<UserInfoList data={data}/>
+			)}
 		</div>
 	);
 }

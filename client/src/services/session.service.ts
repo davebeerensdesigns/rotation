@@ -72,7 +72,9 @@ export async function verifySIWEAuth({
 }
 
 export async function fetchUserSessionsData(
-	apiFetch: typeof fetch): Promise<any[] | null> {
+	apiFetch: typeof fetch,
+	onError?: (msg: string) => void
+): Promise<any[] | null> {
 	try {
 		const res = await apiFetch('/api/session/all',
 			{
@@ -84,17 +86,20 @@ export async function fetchUserSessionsData(
 		);
 		
 		if (!res.ok) {
+			onError?.('Failed to load sessions.');
 			return null;
 		}
 		
 		const {data} = await res.json();
 		
 		if (!Array.isArray(data) || data.length === 0) {
+			onError?.('No active sessions found.');
 			return null;
 		}
 		
 		return data;
 	} catch (err) {
+		onError?.('Error while loading your sessions.');
 		return null;
 	}
 }

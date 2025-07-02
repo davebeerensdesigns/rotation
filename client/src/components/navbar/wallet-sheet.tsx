@@ -8,16 +8,24 @@ import {LogOut, Pencil, Settings, User} from 'lucide-react';
 import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
 import {useSession} from 'next-auth/react';
+import {useRouter} from 'next/navigation';
+import {showToast} from '@/lib/toast-message';
 
 export const WalletSheet = (): JSX.Element => {
 	const {data: session} = useSession();
 	const [open, setOpen] = useState(false);
 	const {disconnect} = useDisconnect();
-	
+	const router = useRouter();
 	const handleLogout = async () => {
 		try {
 			await disconnect();
 			setOpen(false);
+			showToast('success',
+				'Logout',
+				'You have successfully logged out.'
+			);
+			router.push('/');
+			router.refresh();
 		} catch (err) {
 			setOpen(false);
 		}

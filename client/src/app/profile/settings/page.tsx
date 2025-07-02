@@ -7,6 +7,7 @@ import {fetchUserSessionsData} from '@/services/session.service';
 import {LoaderIndicator} from '@/components/loading/component-loader';
 import {UserSession} from '@/types/user';
 import {useApiFetch} from '@/lib/api-fetch';
+import {toast} from 'sonner';
 
 export default function ProfileSettings(): JSX.Element {
 	const {
@@ -15,18 +16,27 @@ export default function ProfileSettings(): JSX.Element {
 	} = useSession();
 	const [sessionsData, setSessionsData] = useState<UserSession[] | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const apiFetch = useApiFetch();
+	
 	useEffect(() => {
 			if (status !== 'authenticated') return;
 			
 			const fetchData = async () => {
 				try {
-					const sessions = await fetchUserSessionsData(apiFetch);
-					if (sessions) setSessionsData(sessions);
-				} catch (e) {
-					console.error('[Fetch user sessions]',
-						e
+					const sessions = await fetchUserSessionsData(apiFetch,
+						(msg) => {
+							setErrorMessage(msg); // store for UI
+							toast.error(msg);     // trigger toast
+						}
 					);
+					if (sessions) {
+						setSessionsData(sessions);
+						setErrorMessage(null); // clear previous error
+					}
+				} catch (e) {
+					setErrorMessage('Unexpected error occurred while loading sessions.');
+					toast.error('Unexpected error occurred while loading sessions.');
 				} finally {
 					setLoading(false);
 				}
@@ -46,9 +56,7 @@ export default function ProfileSettings(): JSX.Element {
 		return {
 			browser: `${browser.name ?? 'Unknown'} ${browser.version ?? ''}`,
 			os: `${os.name ?? 'Unknown'} ${os.version ?? ''}`,
-			device: device.model
-				? `${device.vendor ?? ''} ${device.model}`
-				: 'Desktop / Unknown Device'
+			device: device.model ? `${device.vendor ?? ''} ${device.model}` : 'Desktop / Unknown Device'
 		};
 	};
 	
@@ -57,11 +65,14 @@ export default function ProfileSettings(): JSX.Element {
 			<h1 className="my-6 text-3xl sm:text-xl md:text-2xl md:leading-[1.2] font-bold">
 				Settings
 			</h1>
+			
 			<div className="space-y-4">
 				{status === 'loading' || loading ? (
 					<LoaderIndicator label="Loading sessions..."/>
 				) : status === 'unauthenticated' || !session ? (
 					<p>You are not logged in.</p>
+				) : errorMessage ? (
+					<p>{errorMessage}</p>
 				) : !sessionsData ? (
 					<p>Could not load session data.</p>
 				) : (
@@ -86,5 +97,3 @@ export default function ProfileSettings(): JSX.Element {
 		</>
 	);
 }
-
-

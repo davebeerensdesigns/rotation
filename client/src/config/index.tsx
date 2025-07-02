@@ -10,6 +10,7 @@ import {getSession, signIn, signOut} from 'next-auth/react';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import {AppKitNetwork, arbitrum, mainnet, optimism} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
+import {setNextToast} from '@/lib/toast-message';
 
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
 if (!projectId) throw new Error('Project ID is not defined');
@@ -121,6 +122,10 @@ export const siweConfig = createSIWEConfig({
 	},
 	onSignIn: (session?: SIWESession): void => {
 		if (session) {
+			setNextToast('success',
+				'Login',
+				'Successfully logged in!'
+			);
 			window.location.reload();
 		}
 	},
@@ -131,10 +136,20 @@ export const siweConfig = createSIWEConfig({
 		const session = await getSession();
 		if (session) {
 			try {
-				await signOut({
-					redirect: true,
-					redirectTo: '/'
-				});
+				if (session.error === 'RefreshAccessTokenError') {
+					setNextToast('error',
+						'Logout',
+						'Your session has been revoked or expired. Please log in again.'
+					);
+					await signOut({
+						redirect: true,
+						redirectTo: '/'
+					});
+				} else {
+					await signOut({
+						redirect: false
+					});
+				}
 				return true;
 			} catch {
 				return false;
