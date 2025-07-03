@@ -9,8 +9,9 @@ export type UserData = {
 };
 
 export type UserSession = {
-	sessionId: string;
-	visitorId: string;
+	chainId: string;
 	userAgent: string;
 	createdAt: string;
+	ipAddress: string | null;
+	isCurrent?: boolean;
 }

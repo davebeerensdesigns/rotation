@@ -162,6 +162,8 @@ export default class SessionController {
 		res: Response
 	): Promise<Response> {
 		const userId = req.auth!.userId;
+		const currentSessionId = req.auth!.sessionId;
+		const currentVisitorId = req.auth!.visitorId;
 		
 		try {
 			const sessions = await sessionService.getAllUserSessionsByUserId(new ObjectId(userId));
@@ -172,10 +174,16 @@ export default class SessionController {
 				);
 			}
 			
-			return responseUtils.success(res,
-				SessionMapper.toResponseArray(sessions)
+			const response = sessions.map((session) =>
+				SessionMapper.toResponse(
+					session,
+					session.sessionId === currentSessionId && session.visitorId === currentVisitorId
+				)
 			);
 			
+			return responseUtils.success(res,
+				response
+			);
 		} catch (err: any) {
 			return responseUtils.error(res,
 				{error: 'Unexpected error retrieving sessions'},

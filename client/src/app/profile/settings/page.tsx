@@ -8,6 +8,7 @@ import {LoaderIndicator} from '@/components/loading/component-loader';
 import {UserSession} from '@/types/user';
 import {useApiFetch} from '@/lib/api-fetch';
 import {toast} from 'sonner';
+import {Badge} from '@/components/ui/badge';
 
 export default function ProfileSettings(): JSX.Element {
 	const {
@@ -76,18 +77,28 @@ export default function ProfileSettings(): JSX.Element {
 				) : !sessionsData ? (
 					<p>Could not load session data.</p>
 				) : (
-					sessionsData.map((session) => {
+					sessionsData.map((
+						session,
+						index
+					) => {
 						const parsed = parseUserAgent(session.userAgent);
+						
 						return (
 							<div
-								key={session.sessionId}
-								className="border p-4 rounded-xl shadow-sm bg-white dark:bg-slate-900"
+								key={index}
+								className="relative border p-4 rounded-xl shadow-sm bg-white dark:bg-slate-900"
 							>
+								{session.isCurrent && (
+									<div className="absolute top-2 right-2">
+										<Badge>Current</Badge>
+									</div>
+								)}
+								
 								<div><strong>Device:</strong> {parsed.device}</div>
 								<div><strong>OS:</strong> {parsed.os}</div>
 								<div><strong>Browser:</strong> {parsed.browser}</div>
-								<div><strong>Visitor ID:</strong> {session.visitorId}</div>
-								<div><strong>Session ID:</strong> {session.sessionId}</div>
+								<div><strong>ChainId:</strong> {session.chainId}</div>
+								<div><strong>Ip address:</strong> {session.ipAddress}</div>
 								<div><strong>Created:</strong> {new Date(session.createdAt).toLocaleString()}</div>
 							</div>
 						);
