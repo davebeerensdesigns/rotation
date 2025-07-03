@@ -1,6 +1,7 @@
 'use client';
 
-import {useSession} from 'next-auth/react';
+import {signOut, useSession} from 'next-auth/react';
+import {setNextToast} from '@/lib/toast-message';
 
 type ApiFetch = (
 	input: string | Request | URL,
@@ -8,7 +9,6 @@ type ApiFetch = (
 ) => Promise<Response>;
 
 export function useApiFetch(): ApiFetch {
-	const {update} = useSession();
 	
 	return async function apiFetch(
 		input: string | Request | URL,
@@ -19,8 +19,14 @@ export function useApiFetch(): ApiFetch {
 		);
 		
 		if (res.status === 401) {
-			console.warn('[apiFetch] 401 — marking session invalid');
-			await update({error: 'RefreshAccessTokenError'});
+			setNextToast('error',
+				'Logout',
+				'Your session has been revoked or expired. Please log in again.'
+			);
+			await signOut({
+				redirect: true,
+				redirectTo: '/'
+			});
 		}
 		
 		return res;

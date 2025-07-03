@@ -15,7 +15,7 @@ if (!projectId) {
 }
 
 createAppKit({
-	themeMode: 'light',
+	themeMode: 'dark',
 	adapters: [wagmiAdapter],
 	networks: chains,
 	chainImages: chainLogos,
@@ -39,7 +39,6 @@ export default function AppKitProvider({
 	children: ReactNode;
 	initialState?: State;
 }): JSX.Element {
-	
 	return (
 		<WagmiProvider config={wagmiAdapter.wagmiConfig} initialState={initialState}>
 			<QueryClientProvider client={queryClient}>

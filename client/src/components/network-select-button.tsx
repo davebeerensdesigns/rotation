@@ -12,7 +12,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import {Check} from 'lucide-react';
+import {Check, Loader} from 'lucide-react';
 import {chains, chainLogos} from '@/config';
 
 export const NetworkSelectButton = () => {
@@ -41,8 +41,8 @@ export const NetworkSelectButton = () => {
 						</div>
 					</Button>
 				) : (
-					<Button variant="outline">
-						<span className="text-xs text-muted-foreground">Network</span>
+					<Button variant="outline" size="icon">
+						<Loader className="h-4 w-4 animate-spin"/>
 					</Button>
 				)}
 			</DropdownMenuTrigger>

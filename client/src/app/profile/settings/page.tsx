@@ -20,7 +20,7 @@ export default function ProfileSettings(): JSX.Element {
 	const apiFetch = useApiFetch();
 	
 	useEffect(() => {
-			if (status !== 'authenticated') return;
+			if (status !== 'authenticated' || !session) return;
 			
 			const fetchData = async () => {
 				try {

@@ -37,7 +37,7 @@ export default async function RootLayout({
 		<body className={`${geistSans.className} antialiased`}>
 		<SessionClientProvider session={session}>
 			<AppKitProvider initialState={initialState}>
-				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+				<ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
 					<Toaster/>
 					<ToastTrigger/>
 					<NavbarShell/>

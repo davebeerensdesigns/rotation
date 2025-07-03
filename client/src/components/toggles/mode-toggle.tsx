@@ -9,9 +9,15 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import {useAppKitTheme} from '@reown/appkit/react';
 
 export function ModeToggle() {
 	const {setTheme} = useTheme();
+	const {setThemeMode} = useAppKitTheme();
+	const switchTheme = (theme: 'light' | 'dark') => {
+		setTheme(theme);
+		setThemeMode(theme);
+	};
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -24,14 +30,11 @@ export function ModeToggle() {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				<DropdownMenuItem onClick={() => setTheme('light')}>
+				<DropdownMenuItem onClick={() => switchTheme('light')}>
 					Light
 				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => setTheme('dark')}>
+				<DropdownMenuItem onClick={() => switchTheme('dark')}>
 					Dark
-				</DropdownMenuItem>
-				<DropdownMenuItem onClick={() => setTheme('system')}>
-					System
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
