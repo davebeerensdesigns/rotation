@@ -31,6 +31,11 @@ export default {
 					label: 'UserAgent',
 					type: 'text',
 					placeholder: ''
+				},
+				ipAddress: {
+					label: 'ipAddress',
+					type: 'text',
+					placeholder: ''
 				}
 			},
 			async authorize(credentials): Promise<User | null> {
@@ -38,7 +43,8 @@ export default {
 					typeof credentials?.message !== 'string' ||
 					typeof credentials?.signature !== 'string' ||
 					typeof credentials?.userAgent !== 'string' ||
-					typeof credentials?.visitorId !== 'string'
+					typeof credentials?.visitorId !== 'string' ||
+					typeof credentials?.ipAddress !== 'string'
 				) {
 					return null;
 				}
@@ -46,7 +52,8 @@ export default {
 					message: credentials.message,
 					signature: credentials.signature,
 					userAgent: credentials.userAgent,
-					visitorId: credentials.visitorId
+					visitorId: credentials.visitorId,
+					ipAddress: credentials.ipAddress
 				});
 			}
 		})

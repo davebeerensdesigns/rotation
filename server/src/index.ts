@@ -22,7 +22,6 @@ export default class Server {
 			origin: process.env.CORS_ORIGIN || 'http://localhost:3000/',
 			credentials: true
 		};
-		
 		this.app.use(cors(corsOptions));
 		this.app.use(cookieParser());
 		this.app.use(express.json());

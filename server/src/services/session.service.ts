@@ -177,9 +177,9 @@ export class SessionService {
 		sessionId,
 		visitorId,
 		chainId,
-		address,
 		userAgent,
-		refreshToken
+		refreshToken,
+		ipAddress
 	}: {
 		userId: ObjectId;
 		refreshToken: string;
@@ -187,7 +187,7 @@ export class SessionService {
 		userAgent: string;
 		visitorId: string;
 		sessionId: string;
-		address: string;
+		ipAddress: string;
 	}): Promise<void> {
 		const sessions = this.getCollection();
 		const hashedRefresh = sessionUtils.hashToken(refreshToken);
@@ -204,8 +204,8 @@ export class SessionService {
 					sessionId,
 					visitorId,
 					chainId,
-					address,
-					createdAt: new Date()
+					createdAt: new Date(),
+					ipAddress
 				}
 			},
 			{upsert: true}

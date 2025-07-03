@@ -105,14 +105,21 @@ export const siweConfig = createSIWEConfig({
 		try {
 			const fp = await FingerprintJS.load();
 			const {visitorId} = await fp.get();
-			
+			let ipAddress: string | undefined;
+			if (process.env.NODE_ENV === 'development') {
+				const ipRes = await fetch('https://api.ipify.org?format=json');
+				const ipData = await ipRes.json();
+				ipAddress = ipData.ip;
+			}
+			console.log(ipAddress);
 			const success = await signIn('credentials',
 				{
 					message,
 					redirect: false,
 					signature,
 					userAgent: navigator.userAgent,
-					visitorId
+					visitorId,
+					ipAddress
 				}
 			);
 			return Boolean(success?.ok);

@@ -4,12 +4,14 @@ export async function verifySIWEAuth({
 	message,
 	signature,
 	userAgent,
-	visitorId
+	visitorId,
+	ipAddress
 }: {
 	message: string;
 	signature: string;
 	userAgent: string;
 	visitorId: string;
+	ipAddress: string;
 }): Promise<User | null> {
 	try {
 		if (!message) {
@@ -29,7 +31,8 @@ export async function verifySIWEAuth({
 					message,
 					signature,
 					userAgent,
-					visitorId
+					visitorId,
+					ipAddress
 				})
 			}
 		);

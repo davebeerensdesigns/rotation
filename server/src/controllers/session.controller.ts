@@ -13,6 +13,7 @@ import {SessionMapper} from '../mappers/session.mapper';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
 import {JWTPayload} from 'jose';
+import {getClientIp} from '../utils/ip.utils';
 
 const sessionUtils = SessionUtils.getInstance();
 const userService = UserService.getInstance();
@@ -40,9 +41,13 @@ export default class SessionController {
 				message,
 				signature,
 				userAgent,
-				visitorId
+				visitorId,
+				ipAddress
 			} = req.body;
-			
+			const givenIpaddress =
+				ipAddress && typeof req.body.ipAddress === 'string'
+					? ipAddress
+					: getClientIp(req);
 			if (!message || !signature) {
 				return responseUtils.error(res,
 					{
@@ -118,7 +123,7 @@ export default class SessionController {
 				userAgent,
 				visitorId,
 				sessionId,
-				address
+				ipAddress: givenIpaddress
 			});
 			
 			return responseUtils.success(res,
