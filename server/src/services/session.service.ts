@@ -158,6 +158,20 @@ export class SessionService {
 		return allSessions ?? null;
 	}
 	
+	public async removeAllSessionsByUserAndVisitorId({
+		userId,
+		visitorId
+	}: {
+		userId: ObjectId;
+		visitorId: string;
+	}): Promise<void> {
+		const sessions = this.getCollection();
+		await sessions.deleteMany({
+			userId,
+			visitorId
+		});
+	}
+	
 	public async storeSession({
 		userId,
 		sessionId,

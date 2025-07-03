@@ -106,6 +106,11 @@ export default class SessionController {
 			const decodedRefresh = sessionUtils.decodeToken(refreshToken);
 			const refreshTokenExpires = decodedRefresh?.exp;
 			
+			await sessionService.removeAllSessionsByUserAndVisitorId({
+				userId: user._id,
+				visitorId
+			});
+			
 			await sessionService.storeSession({
 				userId: user._id,
 				refreshToken,
