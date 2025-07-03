@@ -14,7 +14,6 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT,
 ) : 3001;
 
 // TODO: correctly type every file
-// TODO: make DRY
 // TODO: add tests
 // TODO: add logging
 

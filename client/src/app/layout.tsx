@@ -27,7 +27,6 @@ export default async function RootLayout({
 		cookiesObject.get('cookie')
 	);
 	const session = await auth();
-	// TODO: add toasts for login/logout/error events
 	// TODO: correctly type every file
 	// TODO: make DRY
 	// TODO: add tests
