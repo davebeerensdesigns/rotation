@@ -2,13 +2,10 @@ import {Request, Response} from 'express';
 import {generateNonce} from 'siwe';
 
 import {SessionUtils} from '../utils/session.utils';
-import {UserService} from '../services/user.service';
 import {ResponseUtils} from '../utils/response.utils';
 import {SessionService} from '../services/session.service';
-
 import {UserMapper} from '../mappers/user.mapper';
 import {ObjectId} from 'mongodb';
-import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
@@ -16,7 +13,6 @@ import {JWTPayload} from 'jose';
 import {getClientIp} from '../utils/ip.utils';
 
 const sessionUtils = SessionUtils.getInstance();
-const userService = UserService.getInstance();
 const sessionService = SessionService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
@@ -44,97 +40,37 @@ export default class SessionController {
 				visitorId,
 				ipAddress
 			} = req.body;
-			const givenIpaddress =
-				ipAddress && typeof req.body.ipAddress === 'string'
-					? ipAddress
-					: getClientIp(req);
-			if (!message || !signature) {
+			
+			const givenIpaddress = ipAddress && typeof ipAddress === 'string'
+				? ipAddress
+				: getClientIp(req);
+			
+			if (!message || !signature || !userAgent || !visitorId) {
 				return responseUtils.error(res,
 					{
-						error: 'SiweMessage is undefined or incomplete'
-					},
-					400
-				);
-			}
-			if (!userAgent || !visitorId) {
-				return responseUtils.error(res,
-					{
-						error: 'Missing userAgent or visitorId'
+						error: 'Missing required fields'
 					},
 					400
 				);
 			}
 			
-			const {
-				address,
-				chainId
-			} = await sessionService.verifySiweSignature({
+			const result = await sessionService.loginAndCreateSession({
 				message,
-				signature
-			});
-			
-			const parsed = userCreateSchema.safeParse({
-				address
-			});
-			
-			if (!parsed.success) {
-				return responseUtils.error(res,
-					{
-						error: 'Invalid user data',
-						details: parsed.error.flatten()
-					},
-					400
-				);
-			}
-			
-			const user = await userService.findOrCreateUser(
-				address
-			);
-			
-			const sessionId = new ObjectId().toString();
-			
-			const {
-				accessToken,
-				refreshToken
-			} = await sessionUtils.generateTokens({
-				userId: user._id.toString(),
-				role: user.role,
-				sessionId,
-				visitorId,
-				chainId,
-				address
-			});
-			
-			const decodedAccess = sessionUtils.decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess?.exp;
-			
-			const decodedRefresh = sessionUtils.decodeToken(refreshToken);
-			const refreshTokenExpires = decodedRefresh?.exp;
-			
-			await sessionService.removeAllSessionsByUserAndVisitorId({
-				userId: user._id,
-				visitorId
-			});
-			
-			await sessionService.storeSession({
-				userId: user._id,
-				refreshToken,
-				chainId,
+				signature,
 				userAgent,
 				visitorId,
-				sessionId,
 				ipAddress: givenIpaddress
 			});
 			
 			return responseUtils.success(res,
 				{
-					accessToken,
-					accessTokenExpires,
-					refreshToken,
-					refreshTokenExpires,
-					chainId,
-					address,
-					user: UserMapper.toResponse(user)
+					accessToken: result.accessToken,
+					refreshToken: result.refreshToken,
+					accessTokenExpires: result.accessTokenExpires,
+					refreshTokenExpires: result.refreshTokenExpires,
+					chainId: result.chainId,
+					address: result.address,
+					user: UserMapper.toResponse(result.user)
 				}
 			);
 		} catch (err: any) {
@@ -166,28 +102,21 @@ export default class SessionController {
 		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
-		const userId = req.auth!.userId;
-		const currentSessionId = req.auth!.sessionId;
-		const currentVisitorId = req.auth!.visitorId;
+		const {
+			userId,
+			sessionId,
+			visitorId
+		} = req.auth!;
 		
 		try {
-			const sessions = await sessionService.getAllUserSessionsByUserId(new ObjectId(userId));
-			if (sessions === null) {
-				return responseUtils.error(res,
-					{error: 'Invalid or expired access token'},
-					401
-				);
-			}
-			
-			const response = sessions.map((session) =>
-				SessionMapper.toResponse(
-					session,
-					session.sessionId === currentSessionId && session.visitorId === currentVisitorId
-				)
-			);
+			const sessions = await sessionService.getAllSessionsMapped({
+				userId: new ObjectId(userId),
+				currentSessionId: sessionId,
+				currentVisitorId: visitorId
+			});
 			
 			return responseUtils.success(res,
-				response
+				sessions
 			);
 		} catch (err: any) {
 			return responseUtils.error(res,
@@ -201,19 +130,17 @@ export default class SessionController {
 		req: RefreshEncAuthRequest,
 		res: Response
 	): Promise<Response> {
-		
-		const userId = req.auth!.userId;
-		const visitorId = req.auth!.visitorId;
-		const sessionId = req.auth!.sessionId;
-		const address = req.auth!.address;
-		const chainId = req.auth!.chainId;
-		const role = req.auth!.role;
+		const {
+			userId,
+			visitorId,
+			sessionId,
+			address,
+			chainId,
+			role
+		} = req.auth!;
 		
 		try {
-			const {
-				accessToken,
-				accessTokenExpires
-			} = await sessionService.refreshAccessToken({
+			const result = await sessionService.rotateAccessToken({
 				userId: new ObjectId(userId),
 				visitorId,
 				sessionId,
@@ -223,39 +150,23 @@ export default class SessionController {
 			});
 			
 			return responseUtils.success(res,
-				{
-					accessToken,
-					accessTokenExpires
-				}
+				result
 			);
 		} catch (err: any) {
 			return responseUtils.error(res,
-				{
-					error: err.message
-				},
+				{error: err.message},
 				401
 			);
 		}
 	}
 	
 	async logout(
-		req: Request,
+		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{error: 'Missing or malformed Authorization header'},
-				401
-			);
-		}
-		const payload = sessionUtils.decodeToken(accessToken);
-		const decodedPayload = payload as unknown as JWTPayload;
-		const enc = await sessionUtils.decryptNestedPayload(decodedPayload);
-		
-		const userId = new ObjectId(payload?.sub);
-		const sessionId = enc.sessionId;
-		const visitorId = enc.visitorId;
+		const userId = new ObjectId(req.auth!.userId);
+		const sessionId = req.auth!.sessionId;
+		const visitorId = req.auth!.visitorId;
 		
 		try {
 			await sessionService.logoutUserCurrentSessionByValues({
@@ -263,14 +174,13 @@ export default class SessionController {
 				sessionId,
 				visitorId
 			});
+			
 			return responseUtils.success(res,
 				{success: true}
 			);
 		} catch (err: any) {
 			return responseUtils.error(res,
-				{
-					error: err.message
-				},
+				{error: err.message},
 				500
 			);
 		}

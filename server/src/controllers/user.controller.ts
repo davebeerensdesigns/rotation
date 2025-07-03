@@ -42,40 +42,40 @@ export default class UserController {
 		req: AccessEncAuthRequest,
 		res: Response
 	): Promise<Response> {
-		
 		const userId = new ObjectId(req.auth!.userId);
 		
-		const parsed = userUpdateSchema.safeParse(req.body);
-		if (!parsed.success) {
-			return responseUtils.error(res,
-				{
-					error: 'Validation failed',
-					details: parsed.error.format()
-				},
-				400
-			);
-		}
-		
-		const updateData = parsed.data;
-		
-		const updatedUser = await userService.findAndUpdateUser({
-			userId,
-			data: updateData
-		});
-		
-		if (!updatedUser) {
-			return responseUtils.error(res,
-				{
-					error: 'User not found or update failed'
-				},
-				404
-			);
-		}
-		
-		return responseUtils.success(res,
-			{
-				user: UserMapper.toResponse(updatedUser)
+		try {
+			const updatedUser = await userService.findAndUpdateUser({
+				userId,
+				data: req.body
+			});
+			
+			if (!updatedUser) {
+				return responseUtils.error(res,
+					{error: 'User not found or update failed'},
+					404
+				);
 			}
-		);
+			
+			return responseUtils.success(res,
+				{
+					user: UserMapper.toResponse(updatedUser)
+				}
+			);
+		} catch (err: any) {
+			if (err.message === 'Validation failed') {
+				return responseUtils.error(res,
+					{
+						error: err.message,
+						details: err.details ?? undefined
+					},
+					400
+				);
+			}
+			return responseUtils.error(res,
+				{error: 'Unexpected error updating user'},
+				500
+			);
+		}
 	}
 }

@@ -2,6 +2,7 @@ import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
 import MongoDatabase from '../db';
 import {UserUpdateDto} from '../dtos/user.dto';
 import {UserEntity} from '../models/user.entity';
+import {userUpdateSchema} from '../schemas/user.schema';
 
 export class UserService {
 	private static instance: UserService;
@@ -65,9 +66,14 @@ export class UserService {
 		userId: ObjectId,
 		data: UserUpdateDto
 	}): Promise<WithId<UserEntity> | null> {
+		const parsed = userUpdateSchema.safeParse(data);
+		if (!parsed.success) {
+			const error = new Error('Validation failed');
+			(error as any).details = parsed.error.format(); // optioneel
+			throw error;
+		}
 		const users = this.getCollection();
-		
-		const update: UpdateFilter<UserEntity> = {$set: data};
+		const update: UpdateFilter<UserEntity> = {$set: parsed.data};
 		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
 		
 		return await users.findOneAndUpdate({_id: userId},

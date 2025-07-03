@@ -19,6 +19,7 @@ class SessionRoutes {
 			this.controller.verify
 		);
 		this.router.post('/logout',
+			verifyAccessTokenEncMiddleware(),
 			this.controller.logout
 		);
 		this.router.get('/',
