@@ -74,14 +74,13 @@ export const siweConfig = createSIWEConfig({
 		const fp = await FingerprintJS.load();
 		const {visitorId} = await fp.get();
 		
-		const res = await fetch('http://localhost:3001/api/session/nonce',
+		const res = await fetch('/api/session/nonce',
 			{
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
 				},
-				mode: 'cors',
 				credentials: 'include',
 				body: JSON.stringify({
 					visitorId
