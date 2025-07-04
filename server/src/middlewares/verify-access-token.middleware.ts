@@ -52,7 +52,7 @@ export function verifyAccessTokenMiddleware() {
 				accessToken
 			};
 			
-			next();
+			return next();
 		} catch (err: any) {
 			return responseUtils.error(res,
 				{error: 'Invalid or expired access token'},
