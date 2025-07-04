@@ -1,11 +1,16 @@
 import {NextRequest, NextResponse} from 'next/server';
 
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
+
 export async function POST(req: NextRequest) {
 	try {
 		const body = await req.json();
 		const {visitorId} = body;
 		
-		const backendRes = await fetch('http://localhost:3001/api/session/nonce',
+		const backendRes = await fetch(`${serverUrl}/api/session/nonce`,
 			{
 				method: 'POST',
 				headers: {

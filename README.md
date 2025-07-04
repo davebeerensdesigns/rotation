@@ -42,7 +42,8 @@ Make sure to set up the following `.env` files:
 ```
 NEXT_PUBLIC_PROJECT_ID=<your-project-id-from-reown>
 NEXTAUTH_SECRET=<a-random-string>
-DOMAIN=<your-domain>
+NEXT_PUBLIC_DOMAIN=<your-client-domain>
+SERVER_DOMAIN=<your-server-domain>
 ```
 
 #### server/.env
@@ -51,11 +52,14 @@ DOMAIN=<your-domain>
 PORT=3001
 JWT_SECRET=<a-random-string>
 REFRESH_SECRET=<a-random-string>
+ENCRYPTION_SECRET=<a-random-string>
 ACCESS_TOKEN_EXPIRY=600
 REFRESH_TOKEN_EXPIRY=604800
 MONGODB_URI=<mongo-db-connection-url>
 DB_NAME=<a-db-name>
 CORS_ORIGIN=<client-url>
+CORS_HOST=<client-host>
+PROJECT_ID=<your-project-id-from-reown>
 ```
 
 ### 3. Install Dependencies

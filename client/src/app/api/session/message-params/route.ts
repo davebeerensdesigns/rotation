@@ -1,8 +1,13 @@
 import {NextResponse} from 'next/server';
 
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
+
 export async function GET() {
 	try {
-		const backendRes = await fetch('http://localhost:3001/api/session/message-params',
+		const backendRes = await fetch(`${serverUrl}/api/session/message-params`,
 			{
 				method: 'GET',
 				headers: {

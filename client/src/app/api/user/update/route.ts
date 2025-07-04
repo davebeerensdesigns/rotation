@@ -1,6 +1,11 @@
 import {auth} from '@/auth';
 import {NextResponse} from 'next/server';
 
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
+
 export async function PATCH(req: Request) {
 	const session = await auth();
 	
@@ -13,7 +18,7 @@ export async function PATCH(req: Request) {
 	const body = await req.json();
 	
 	try {
-		const backendRes = await fetch('http://localhost:3001/api/user/update',
+		const backendRes = await fetch(`${serverUrl}/api/user/update`,
 			{
 				method: 'PATCH',
 				headers: {

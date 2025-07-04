@@ -1,5 +1,10 @@
 import {User} from 'next-auth';
 
+const domainUrl = process.env.NEXT_PUBLIC_DOMAIN;
+if (!domainUrl) {
+	throw new Error('NEXT_PUBLIC_DOMAIN is not set');
+}
+
 export async function verifySIWEAuth({
 	message,
 	signature,
@@ -18,7 +23,7 @@ export async function verifySIWEAuth({
 			return null;
 		}
 		
-		const res = await fetch('http://localhost:3000/api/session/verify',
+		const res = await fetch(`${domainUrl}/api/session/verify`,
 			{
 				method: 'POST',
 				headers: {

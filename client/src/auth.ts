@@ -7,6 +7,10 @@ const nextAuthSecret = process.env.NEXTAUTH_SECRET;
 if (!nextAuthSecret) {
 	throw new Error('NEXTAUTH_SECRET is not set');
 }
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
 
 export const {
 	handlers: {
@@ -72,7 +76,7 @@ export const {
 			}
 			
 			try {
-				const backendRes = await fetch('http://localhost:3001/api/session/refresh',
+				const backendRes = await fetch(`${serverUrl}/api/session/refresh`,
 					{
 						method: 'POST',
 						headers: {
@@ -138,7 +142,7 @@ export const {
 				
 				try {
 					if (accessToken) {
-						await fetch('http://localhost:3001/api/session/logout',
+						await fetch(`${serverUrl}/api/session/logout`,
 							{
 								method: 'POST',
 								headers: {

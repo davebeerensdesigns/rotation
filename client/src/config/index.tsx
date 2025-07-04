@@ -15,10 +15,13 @@ import {setNextToast} from '@/lib/toast-message';
 export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID;
 if (!projectId) throw new Error('Project ID is not defined');
 
+const domainUrl = process.env.NEXT_PUBLIC_DOMAIN;
+if (!domainUrl) throw new Error('NEXT_PUBLIC_DOMAIN is not set');
+
 export const metadata = {
 	name: 'Appkit SIWE Example',
 	description: 'Appkit Siwe Example - Next.js',
-	url: process.env.DOMAIN || 'http://localhost:3000',
+	url: domainUrl,
 	icons: ['https://avatars.githubusercontent.com/u/179229932']
 };
 
