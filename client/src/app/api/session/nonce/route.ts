@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
 			}
 		);
 		
-		const nonce = await backendRes.text();
-		return new NextResponse(nonce);
+		const {data} = await backendRes.json();
+		return new NextResponse(data.nonce);
 		
 	} catch (err) {
 		return NextResponse.json({error: 'Failed to fetch nonce'},

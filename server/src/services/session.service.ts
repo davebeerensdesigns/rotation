@@ -38,6 +38,22 @@ export class SessionService {
 			.getSessionsCollection();
 	}
 	
+	public async getMessageParams(): Promise<{
+		domain: string;
+		uri: string;
+		statement: string;
+	}> {
+		const domain = process.env.CORS_HOST ?? 'localhost:3000';
+		const uri = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+		const statement = 'Please sign with your account';
+		
+		return {
+			domain,
+			uri,
+			statement
+		};
+	}
+	
 	public async loginAndCreateSession({
 		message,
 		signature,

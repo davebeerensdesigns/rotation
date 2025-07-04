@@ -16,15 +16,31 @@ export default class SessionController {
 	async nonce(
 		req: Request,
 		res: Response
-	): Promise<void> {
+	): Promise<Response> {
 		const {
 			visitorId
 		} = req.body;
 		const nonce = await nonceService.generateAndSaveNonce(visitorId);
-		res.setHeader('Content-Type',
-			'text/plain'
+		return responseUtils.success(res,
+			{nonce}
 		);
-		res.send(nonce);
+	}
+	
+	public async messageParams(
+		req: Request,
+		res: Response
+	): Promise<Response> {
+		try {
+			const data = await sessionService.getMessageParams();
+			return responseUtils.success(res,
+				data
+			);
+		} catch (err) {
+			return responseUtils.error(res,
+				{error: 'Failed to retrieve message params'},
+				500
+			);
+		}
 	}
 	
 	async verify(

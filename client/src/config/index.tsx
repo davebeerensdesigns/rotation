@@ -57,12 +57,29 @@ const normalizeAddress = (address: string): string => {
 let isLoggingOut = false;
 
 export const siweConfig = createSIWEConfig({
-	getMessageParams: async () => ({
-		domain: typeof window !== 'undefined' ? window.location.host : '',
-		uri: typeof window !== 'undefined' ? window.location.origin : '',
-		chains: chains.map((chain: AppKitNetwork) => parseInt(chain.id.toString())),
-		statement: 'Please sign with your account'
-	}),
+	getMessageParams: async () => {
+		try {
+			const res = await fetch('/api/session/message-params',
+				{
+					method: 'GET',
+					headers: {'Accept': 'application/json'}
+				}
+			);
+			
+			if (!res.ok) return undefined;
+			
+			const data = await res.json();
+			
+			return {
+				...data,
+				chains: chains.map((chain) => parseInt(chain.id.toString(),
+					10
+				))
+			};
+		} catch {
+			return undefined;
+		}
+	},
 	createMessage: ({
 		address,
 		...args

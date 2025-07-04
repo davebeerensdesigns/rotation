@@ -15,6 +15,9 @@ class SessionRoutes {
 		this.router.post('/nonce',
 			this.controller.nonce
 		);
+		this.router.get('/message-params',
+			this.controller.messageParams
+		);
 		this.router.post('/verify',
 			this.controller.verify
 		);
