@@ -1,19 +1,15 @@
 import {Request, Response} from 'express';
-import {generateNonce} from 'siwe';
-
-import {SessionUtils} from '../utils/session.utils';
 import {ResponseUtils} from '../utils/response.utils';
 import {SessionService} from '../services/session.service';
 import {UserMapper} from '../mappers/user.mapper';
 import {ObjectId} from 'mongodb';
-import {SessionMapper} from '../mappers/session.mapper';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
-import {JWTPayload} from 'jose';
 import {getClientIp} from '../utils/ip.utils';
+import {NonceService} from '../services/nonce.service';
 
-const sessionUtils = SessionUtils.getInstance();
 const sessionService = SessionService.getInstance();
+const nonceService = NonceService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
 export default class SessionController {
@@ -21,7 +17,10 @@ export default class SessionController {
 		req: Request,
 		res: Response
 	): Promise<void> {
-		const nonce = generateNonce();
+		const {
+			visitorId
+		} = req.body;
+		const nonce = await nonceService.generateAndSaveNonce(visitorId);
 		res.setHeader('Content-Type',
 			'text/plain'
 		);

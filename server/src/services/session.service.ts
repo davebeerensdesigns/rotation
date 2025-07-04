@@ -1,22 +1,29 @@
 import {ObjectId} from 'mongodb';
 import MongoDatabase from '../db';
-import {getAddressFromMessage, getChainIdFromMessage} from '@reown/appkit-siwe';
-import {createPublicClient, http} from 'viem';
+import {getAddressFromMessage, getChainIdFromMessage, verifySignature} from '@reown/appkit-siwe';
 import {v4 as uuidv4} from 'uuid';
 import {SessionUtils} from '../utils/session.utils';
 import {UserService} from './user.service';
 import {SessionEntity} from '../models/session.entity';
 import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
+import {SiweMessage} from 'siwe';
+import {NonceService} from './nonce.service';
 
-const projectId = process.env.PROJECT_ID;
 const sessionUtils = SessionUtils.getInstance();
+const nonceService = NonceService.getInstance();
 const userService = UserService.getInstance();
 
 export class SessionService {
 	private static instance: SessionService;
+	private readonly projectId: string;
 	
 	private constructor() {
+		const projectIdEnv = process.env.PROJECT_ID || '';
+		if (!projectIdEnv) {
+			throw new Error('Project id is required');
+		}
+		this.projectId = projectIdEnv;
 	}
 	
 	public static getInstance(): SessionService {
@@ -57,7 +64,8 @@ export class SessionService {
 			chainId
 		} = await this.verifySiweSignature({
 			message,
-			signature
+			signature,
+			visitorId
 		});
 		
 		const parsed = userCreateSchema.safeParse({address});
@@ -114,23 +122,46 @@ export class SessionService {
 	private async verifySiweSignature(
 		{
 			message,
-			signature
+			signature,
+			visitorId
 		}: {
 			message: string,
-			signature: string
+			signature: string,
+			visitorId: string
 		}): Promise<{ address: string; chainId: string }> {
 		const address = getAddressFromMessage(message) as `0x${string}`;
 		const chainId = getChainIdFromMessage(message);
 		
-		const client = createPublicClient({
-			transport: http(`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`)
+		const siweMessage = new SiweMessage(message);
+		const nonce = siweMessage.nonce;
+		const validNonce = await nonceService.validateAndRemoveNonce({
+			nonce,
+			visitorId
 		});
 		
-		const isValid = await client.verifyMessage({
-			message,
+		if (!validNonce) {
+			throw new Error('Invalid nonce');
+		}
+		// The verifySignature is not working with social logins and emails with non deployed smart accounts.
+		// If this is needed then use:
+		// const client = createPublicClient({
+		// 	transport: http(`https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`)
+		// });
+		//
+		// const isValid = await client.verifyMessage({
+		// 	message,
+		// 	address,
+		// 	signature: signature as `0x${string}`
+		// });
+		
+		const isValid = await verifySignature({
 			address,
-			signature: signature as `0x${string}`
+			message,
+			signature,
+			chainId,
+			projectId: this.projectId
 		});
+		
 		if (!isValid) {
 			throw new Error('Invalid signature');
 		}

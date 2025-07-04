@@ -12,7 +12,7 @@ class SessionRoutes {
 	}
 	
 	private initializeRoutes(): void {
-		this.router.get('/nonce',
+		this.router.post('/nonce',
 			this.controller.nonce
 		);
 		this.router.post('/verify',

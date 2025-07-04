@@ -71,10 +71,21 @@ export const siweConfig = createSIWEConfig({
 			normalizeAddress(address)
 		),
 	getNonce: async () => {
+		const fp = await FingerprintJS.load();
+		const {visitorId} = await fp.get();
+		
 		const res = await fetch('http://localhost:3001/api/session/nonce',
 			{
-				method: 'GET',
-				credentials: 'include'
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				mode: 'cors',
+				credentials: 'include',
+				body: JSON.stringify({
+					visitorId
+				})
 			}
 		);
 		if (!res.ok) throw new Error('Network response was not ok');
@@ -111,7 +122,7 @@ export const siweConfig = createSIWEConfig({
 				const ipData = await ipRes.json();
 				ipAddress = ipData.ip;
 			}
-			console.log(ipAddress);
+			
 			const success = await signIn('credentials',
 				{
 					message,

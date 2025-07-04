@@ -2,6 +2,7 @@ import {MongoClient, Collection} from 'mongodb';
 import {SessionEntity} from '../models/session.entity';
 import {DB_NAME, MONGODB_URI} from './db.config';
 import {UserEntity} from '../models/user.entity';
+import {NonceEntity} from '../models/nonce.entity';
 
 export default class MongoDatabase {
 	private static instance: MongoDatabase;
@@ -11,6 +12,7 @@ export default class MongoDatabase {
 	
 	private usersCollection?: Collection<UserEntity>;
 	private sessionsCollection?: Collection<SessionEntity>;
+	private nonceCollection?: Collection<NonceEntity>;
 	
 	private constructor() {
 		if (!MONGODB_URI || !DB_NAME) {
@@ -37,6 +39,7 @@ export default class MongoDatabase {
 		
 		this.usersCollection = db.collection<UserEntity>('users');
 		this.sessionsCollection = db.collection<SessionEntity>('sessions');
+		this.nonceCollection = db.collection<NonceEntity>('nonce');
 		
 		await this.sessionsCollection.createIndex(
 			{
@@ -51,6 +54,14 @@ export default class MongoDatabase {
 		await this.sessionsCollection.createIndex({userId: 1});
 		await this.sessionsCollection.createIndex({refreshToken: 1});
 		await this.sessionsCollection.createIndex({createdAt: 1});
+		
+		await this.nonceCollection.createIndex(
+			{
+				nonce: 1,
+				visitorId: 1
+			},
+			{unique: true}
+		);
 		
 		this.isConnected = true;
 		console.log('MongoDB connected and collections initialized');
@@ -70,6 +81,13 @@ export default class MongoDatabase {
 			throw new Error('MongoDatabase not connected: sessionsCollection is undefined');
 		}
 		return this.sessionsCollection;
+	}
+	
+	public getNonceCollection(): Collection<NonceEntity> {
+		if (!this.nonceCollection) {
+			throw new Error('MongoDatabase not connected: nonceCollection is undefined');
+		}
+		return this.nonceCollection;
 	}
 	
 	private async deleteExpiredSession(): Promise<void> {
