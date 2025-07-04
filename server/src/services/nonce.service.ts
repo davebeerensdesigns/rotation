@@ -27,7 +27,8 @@ export class NonceService {
 		const hashVisitorId = sessionUtils.hashToken(visitorId);
 		await nonceCollection.insertOne({
 				visitorId: hashVisitorId,
-				nonce: nonce
+				nonce: nonce,
+				createdAt: new Date()
 			}
 		);
 		

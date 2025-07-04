@@ -4,4 +4,5 @@ export interface NonceEntity {
 	_id?: ObjectId;
 	nonce: string;
 	visitorId: string;
+	createdAt: Date;
 }

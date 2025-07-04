@@ -55,12 +55,21 @@ export default class MongoDatabase {
 		await this.sessionsCollection.createIndex({refreshToken: 1});
 		await this.sessionsCollection.createIndex({createdAt: 1});
 		
+		await this.usersCollection.createIndex({address: 1},
+			{unique: true}
+		);
+		
 		await this.nonceCollection.createIndex(
 			{
 				nonce: 1,
 				visitorId: 1
 			},
 			{unique: true}
+		);
+		
+		await this.nonceCollection.createIndex(
+			{createdAt: 1},
+			{expireAfterSeconds: 300}
 		);
 		
 		this.isConnected = true;
