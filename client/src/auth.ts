@@ -72,7 +72,7 @@ export const {
 			}
 			
 			try {
-				const res = await fetch('http://localhost:3001/api/session/refresh',
+				const backendRes = await fetch('http://localhost:3001/api/session/refresh',
 					{
 						method: 'POST',
 						headers: {
@@ -81,7 +81,7 @@ export const {
 						}
 					}
 				);
-				const json = await res.json();
+				const json = await backendRes.json();
 				
 				if (json.status !== 'success') {
 					return {

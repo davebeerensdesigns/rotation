@@ -11,29 +11,28 @@ export async function verifySIWEAuth({
 	signature: string;
 	userAgent: string;
 	visitorId: string;
-	ipAddress: string;
+	ipAddress?: string;
 }): Promise<User | null> {
 	try {
-		if (!message) {
+		if (!message || !signature || !visitorId || !userAgent) {
 			return null;
 		}
 		
-		const res = await fetch('http://localhost:3001/api/session/verify',
+		const res = await fetch('http://localhost:3000/api/session/verify',
 			{
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
 				},
-				mode: 'cors',
-				credentials: 'include',
 				body: JSON.stringify({
 					message,
 					signature,
 					userAgent,
 					visitorId,
 					ipAddress
-				})
+				}),
+				credentials: 'include'
 			}
 		);
 		
@@ -70,6 +69,9 @@ export async function verifySIWEAuth({
 			picture: user.picture ?? null
 		} satisfies User;
 	} catch (err) {
+		console.error('[verifySIWEAuth] Error:',
+			err
+		);
 		return null;
 	}
 }
