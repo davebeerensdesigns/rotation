@@ -28,7 +28,6 @@ export default async function RootLayout({
 	);
 	const session = await auth();
 	// TODO: correctly type every file
-	// TODO: make DRY
 	// TODO: add tests
 	// TODO: add logging
 	return (
