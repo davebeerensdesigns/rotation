@@ -3,7 +3,6 @@ import {Response} from 'express';
 import {ResponseUtils} from '../utils/response.utils';
 import {UserService} from '../services/user.service';
 import {UserMapper} from '../mappers/user.mapper';
-import {userUpdateSchema} from '../schemas/user.schema';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {ObjectId} from 'mongodb';
 import {AccessAuthRequest} from '../middlewares/verify-access-token.middleware';
