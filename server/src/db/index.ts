@@ -1,14 +1,13 @@
 import {MongoClient, Collection} from 'mongodb';
 import {SessionEntity} from '../models/session.entity';
-import {DB_NAME, MONGODB_URI} from './db.config';
 import {UserEntity} from '../models/user.entity';
 import {NonceEntity} from '../models/nonce.entity';
+import {COLLECTIONS, DB_NAME, MONGODB_URI, REFRESH_TOKEN_EXPIRY_SECONDS} from './db.config';
 
 export default class MongoDatabase {
 	private static instance: MongoDatabase;
 	private client: MongoClient;
-	private isConnected: boolean = false;
-	private readonly refreshTokenExpiry: number;
+	private isConnected = false;
 	
 	private usersCollection?: Collection<UserEntity>;
 	private sessionsCollection?: Collection<SessionEntity>;
@@ -19,9 +18,6 @@ export default class MongoDatabase {
 			throw new Error('Missing MongoDB configuration. Check your .env file.');
 		}
 		this.client = new MongoClient(MONGODB_URI);
-		this.refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY || '86400',
-			10
-		);
 	}
 	
 	public static getInstance(): MongoDatabase {
@@ -34,48 +30,66 @@ export default class MongoDatabase {
 	public async connect(): Promise<void> {
 		if (this.isConnected) return;
 		
-		await this.client.connect();
-		const db = this.client.db(DB_NAME);
-		
-		this.usersCollection = db.collection<UserEntity>('users');
-		this.sessionsCollection = db.collection<SessionEntity>('sessions');
-		this.nonceCollection = db.collection<NonceEntity>('nonce');
-		
-		await this.sessionsCollection.createIndex(
-			{
-				userId: 1,
-				sessionId: 1,
-				visitorId: 1
-			},
-			{unique: true}
-		);
-		
-		// Lookups
-		await this.sessionsCollection.createIndex({userId: 1});
-		await this.sessionsCollection.createIndex({refreshToken: 1});
-		await this.sessionsCollection.createIndex({createdAt: 1});
-		
-		await this.usersCollection.createIndex({address: 1},
-			{unique: true}
-		);
-		
-		await this.nonceCollection.createIndex(
-			{
-				nonce: 1,
-				visitorId: 1
-			},
-			{unique: true}
-		);
-		
-		await this.nonceCollection.createIndex(
-			{createdAt: 1},
-			{expireAfterSeconds: 300}
-		);
-		
+		await this.connectClient();
+		this.initCollections();
+		await this.initIndexes();
 		this.isConnected = true;
-		console.log('MongoDB connected and collections initialized');
 		
-		await this.deleteExpiredSession();
+		console.log('[MongoDatabase] Connected and initialized');
+		
+		await this.cleanupExpiredSessions();
+	}
+	
+	private async connectClient(): Promise<void> {
+		await this.client.connect();
+	}
+	
+	private initCollections(): void {
+		const db = this.client.db(DB_NAME);
+		this.usersCollection = db.collection<UserEntity>(COLLECTIONS.users);
+		this.sessionsCollection = db.collection<SessionEntity>(COLLECTIONS.sessions);
+		this.nonceCollection = db.collection<NonceEntity>(COLLECTIONS.nonce);
+	}
+	
+	private async initIndexes(): Promise<void> {
+		if (!this.usersCollection || !this.sessionsCollection || !this.nonceCollection) {
+			throw new Error('Collections are not initialized before creating indexes.');
+		}
+		
+		await Promise.all([
+			this.sessionsCollection.createIndex({
+					userId: 1,
+					sessionId: 1,
+					visitorId: 1
+				},
+				{unique: true}
+			),
+			this.sessionsCollection.createIndex({userId: 1}),
+			this.sessionsCollection.createIndex({refreshToken: 1}),
+			this.sessionsCollection.createIndex({createdAt: 1}),
+			
+			this.usersCollection.createIndex({address: 1},
+				{unique: true}
+			),
+			
+			this.nonceCollection.createIndex({
+					nonce: 1,
+					visitorId: 1
+				},
+				{unique: true}
+			),
+			this.nonceCollection.createIndex({createdAt: 1},
+				{expireAfterSeconds: 300}
+			)
+		]);
+	}
+	
+	private async cleanupExpiredSessions(): Promise<void> {
+		const sessions = this.getSessionsCollection();
+		const expiryDate = new Date(Date.now() - REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
+		const result = await sessions.deleteMany({createdAt: {$lt: expiryDate}});
+		
+		console.log(`[MongoDatabase] Cleaned up ${result.deletedCount} expired sessions`);
 	}
 	
 	public getUsersCollection(): Collection<UserEntity> {
@@ -97,16 +111,5 @@ export default class MongoDatabase {
 			throw new Error('MongoDatabase not connected: nonceCollection is undefined');
 		}
 		return this.nonceCollection;
-	}
-	
-	private async deleteExpiredSession(): Promise<void> {
-		const expiryDate = new Date(Date.now() - this.refreshTokenExpiry * 1000);
-		
-		const sessions = this.getSessionsCollection();
-		const result = await sessions.deleteMany({
-			createdAt: {$lt: expiryDate}
-		});
-		
-		console.log(`[SessionService] Cleaned up ${result.deletedCount} expired sessions`);
 	}
 }

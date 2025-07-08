@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express, {Application} from 'express';
-import cors from 'cors';
+import cors, {CorsOptions} from 'cors';
 import cookieParser from 'cookie-parser';
 import Routes from './routes';
 import MongoDatabase from './db';
@@ -18,8 +18,8 @@ export default class Server {
 	}
 	
 	private config(): void {
-		const corsOptions = {
-			origin: process.env.CORS_ORIGIN || 'http://localhost:3000/',
+		const corsOptions: CorsOptions = {
+			origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000/',
 			credentials: true
 		};
 		this.app.use(cors(corsOptions));
@@ -40,11 +40,13 @@ export default class Server {
 				}
 			)
 			.on('error',
-				(err: any) => {
+				(err: NodeJS.ErrnoException) => {
 					if (err.code === 'EADDRINUSE') {
 						console.error('Port already in use');
 					} else {
-						console.error(err);
+						console.error('Server error:',
+							err
+						);
 					}
 				}
 			);

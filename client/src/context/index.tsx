@@ -5,7 +5,7 @@ import {wagmiAdapter, projectId, siweConfig, metadata, chains, chainLogos} from 
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {State, WagmiProvider} from 'wagmi';
 import {
-	createAppKit
+	createAppKit, useAppKitAccount, useAppKitState, useWalletInfo
 } from '@reown/appkit/react';
 
 const queryClient = new QueryClient();
