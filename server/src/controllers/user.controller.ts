@@ -8,6 +8,7 @@ import {AccessAuthRequest} from '../middlewares/verify-access-token.middleware';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
 import {UserResponseDto} from '../dtos/user.dto';
 import {ValidationError} from '../errors/validation-error';
+import {ErrorResponse} from '../dtos/error.dto';
 
 const userService = UserService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
@@ -38,7 +39,7 @@ export default class UserController {
 	
 	async update(
 		req: AccessEncAuthRequest,
-		res: Response<{ user: UserResponseDto } | { error: string; details?: unknown }>
+		res: Response<{ user: UserResponseDto } | ErrorResponse>
 	): Promise<Response> {
 		const userId = new ObjectId(req.auth!.userId);
 		

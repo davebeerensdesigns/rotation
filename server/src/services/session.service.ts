@@ -9,6 +9,10 @@ import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
 import {SiweMessage} from 'siwe';
 import {NonceService} from './nonce.service';
+import {LoginRequestDto, SessionLoginResponseDto, SessionResponseDto} from '../dtos/session.dto';
+import {loginRequestSchema} from '../schemas/session.schema';
+import {ValidationError} from '../errors/validation-error';
+import {UserMapper} from '../mappers/user.mapper';
 
 const sessionUtils = SessionUtils.getInstance();
 const nonceService = NonceService.getInstance();
@@ -54,27 +58,20 @@ export class SessionService {
 		};
 	}
 	
-	public async loginAndCreateSession({
-		message,
-		signature,
-		userAgent,
-		visitorId,
-		ipAddress
-	}: {
-		message: string;
-		signature: string;
-		userAgent: string;
-		visitorId: string;
-		ipAddress: string | null;
-	}): Promise<{
-		accessToken: string;
-		refreshToken: string;
-		accessTokenExpires: number;
-		refreshTokenExpires: number;
-		chainId: string;
-		address: string;
-		user: any;
-	}> {
+	public async loginAndCreateSession(input: unknown): Promise<SessionLoginResponseDto> {
+		const parsedLogin = loginRequestSchema.safeParse(input);
+		if (!parsedLogin.success) {
+			throw new ValidationError('Validation failed',
+				parsedLogin.error.flatten()
+			);
+		}
+		const {
+			message,
+			signature,
+			visitorId,
+			userAgent,
+			ipAddress
+		} = parsedLogin.data;
 		const {
 			address,
 			chainId
@@ -84,8 +81,8 @@ export class SessionService {
 			visitorId
 		});
 		
-		const parsed = userCreateSchema.safeParse({address});
-		if (!parsed.success) {
+		const parsedUser = userCreateSchema.safeParse({address});
+		if (!parsedUser.success) {
 			throw new Error('Invalid user data');
 		}
 		
@@ -131,7 +128,7 @@ export class SessionService {
 			refreshTokenExpires: decodedRefresh.exp,
 			chainId,
 			address,
-			user
+			user: UserMapper.toResponse(user)
 		};
 	}
 	
@@ -289,7 +286,7 @@ export class SessionService {
 		userId: ObjectId;
 		currentSessionId: string;
 		currentVisitorId: string;
-	}): Promise<any[]> {
+	}): Promise<SessionResponseDto[]> {
 		const sessions = await this.getAllUserSessionsByUserId(userId);
 		if (!sessions) return [];
 		

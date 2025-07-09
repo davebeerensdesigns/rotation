@@ -164,7 +164,7 @@ export class SessionUtils {
 			role,
 			address,
 			enc: encryptedInner,
-			token_type: 'access',
+			token_type: 'refresh',
 			iss: 'auth-service',
 			aud: 'api-gateway'
 		})

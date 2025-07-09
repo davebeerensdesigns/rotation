@@ -1,12 +1,29 @@
 import {Request, Response} from 'express';
+import {ObjectId} from 'mongodb';
+
 import {ResponseUtils} from '../utils/response.utils';
 import {SessionService} from '../services/session.service';
-import {UserMapper} from '../mappers/user.mapper';
-import {ObjectId} from 'mongodb';
-import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
-import {RefreshEncAuthRequest} from '../middlewares/verify-refresh-token-enc.middleware';
-import {getClientIp} from '../utils/ip.utils';
 import {NonceService} from '../services/nonce.service';
+import {UserMapper} from '../mappers/user.mapper';
+import {getClientIp} from '../utils/ip.utils';
+
+import {
+	AccessEncAuthRequest
+} from '../middlewares/verify-access-token-enc.middleware';
+
+import {
+	RefreshEncAuthRequest
+} from '../middlewares/verify-refresh-token-enc.middleware';
+
+import {
+	MessageParamsDto,
+	NonceRequestDto, SessionLoginResponseDto,
+	SessionResponseDto,
+	VerifyRequestDto
+} from '../dtos/session.dto';
+import {UserResponseDto} from '../dtos/user.dto';
+import {ErrorResponse} from '../dtos/error.dto';
+import {ValidationError} from '../errors/validation-error';
 
 const sessionService = SessionService.getInstance();
 const nonceService = NonceService.getInstance();
@@ -14,67 +31,53 @@ const responseUtils = ResponseUtils.getInstance();
 
 export default class SessionController {
 	async nonce(
-		req: Request,
-		res: Response
+		req: Request<{}, {}, NonceRequestDto>,
+		res: Response<{ nonce: string } | ErrorResponse>
 	): Promise<Response> {
-		const {
-			visitorId
-		} = req.body;
-		const nonce = await nonceService.generateAndSaveNonce(visitorId);
-		return responseUtils.success(res,
-			{nonce}
-		);
+		try {
+			const nonce = await nonceService.generateAndSaveNonce(req.body.visitorId);
+			return responseUtils.success(res,
+				{nonce}
+			);
+		} catch (err: any) {
+			return responseUtils.error(res,
+				{
+					error: err.message ?? 'Unexpected error generating nonce'
+				},
+				500
+			);
+		}
 	}
 	
-	public async messageParams(
+	async messageParams(
 		req: Request,
-		res: Response
+		res: Response<MessageParamsDto | ErrorResponse>
 	): Promise<Response> {
 		try {
 			const data = await sessionService.getMessageParams();
 			return responseUtils.success(res,
 				data
 			);
-		} catch (err) {
+		} catch {
 			return responseUtils.error(res,
-				{error: 'Failed to retrieve message params'},
+				{
+					error: 'Failed to retrieve message params'
+				},
 				500
 			);
 		}
 	}
 	
 	async verify(
-		req: Request,
-		res: Response
+		req: Request<{}, {}, VerifyRequestDto>,
+		res: Response<SessionLoginResponseDto | ErrorResponse>
 	): Promise<Response> {
+		const ipAddress = req.body.ipAddress || getClientIp(req);
+		
 		try {
-			const {
-				message,
-				signature,
-				userAgent,
-				visitorId,
-				ipAddress
-			} = req.body;
-			
-			const givenIpaddress = ipAddress && typeof ipAddress === 'string'
-				? ipAddress
-				: getClientIp(req);
-			
-			if (!message || !signature || !userAgent || !visitorId) {
-				return responseUtils.error(res,
-					{
-						error: 'Missing required fields'
-					},
-					400
-				);
-			}
-			
 			const result = await sessionService.loginAndCreateSession({
-				message,
-				signature,
-				userAgent,
-				visitorId,
-				ipAddress: givenIpaddress
+				...req.body,
+				ipAddress
 			});
 			
 			return responseUtils.success(res,
@@ -89,8 +92,20 @@ export default class SessionController {
 				}
 			);
 		} catch (err: any) {
+			if (err instanceof ValidationError) {
+				return responseUtils.error(res,
+					{
+						error: err.message,
+						details: err.details
+					},
+					400
+				);
+			}
 			return responseUtils.error(res,
-				{error: err.message},
+				{
+					error: err.message ?? 'Unexpected error verifying session',
+					details: err.details ?? undefined
+				},
 				500
 			);
 		}
@@ -98,10 +113,12 @@ export default class SessionController {
 	
 	async session(
 		req: AccessEncAuthRequest,
-		res: Response
+		res: Response<{ valid: boolean } | ErrorResponse>
 	): Promise<Response> {
-		const sessionId = req.auth!.sessionId;
-		const visitorId = req.auth!.visitorId;
+		const {
+			sessionId,
+			visitorId
+		} = req.auth!;
 		if (sessionId && visitorId) {
 			return responseUtils.success(res,
 				{valid: true}
@@ -115,27 +132,27 @@ export default class SessionController {
 	
 	async sessionAll(
 		req: AccessEncAuthRequest,
-		res: Response
+		res: Response<SessionResponseDto[] | ErrorResponse>
 	): Promise<Response> {
 		const {
 			userId,
 			sessionId,
 			visitorId
 		} = req.auth!;
-		
 		try {
 			const sessions = await sessionService.getAllSessionsMapped({
 				userId: new ObjectId(userId),
 				currentSessionId: sessionId,
 				currentVisitorId: visitorId
 			});
-			
 			return responseUtils.success(res,
 				sessions
 			);
-		} catch (err: any) {
+		} catch {
 			return responseUtils.error(res,
-				{error: 'Unexpected error retrieving sessions'},
+				{
+					error: 'Unexpected error retrieving sessions'
+				},
 				500
 			);
 		}
@@ -143,7 +160,10 @@ export default class SessionController {
 	
 	async refresh(
 		req: RefreshEncAuthRequest,
-		res: Response
+		res: Response<{
+			accessToken: string;
+			accessTokenExpires: number;
+		} | ErrorResponse>
 	): Promise<Response> {
 		const {
 			userId,
@@ -153,23 +173,23 @@ export default class SessionController {
 			chainId,
 			role
 		} = req.auth!;
-		
 		try {
 			const result = await sessionService.rotateAccessToken({
 				userId: new ObjectId(userId),
 				visitorId,
 				sessionId,
-				chainId,
 				address,
+				chainId,
 				role
 			});
-			
 			return responseUtils.success(res,
 				result
 			);
 		} catch (err: any) {
 			return responseUtils.error(res,
-				{error: err.message},
+				{
+					error: err.message ?? 'Failed to refresh session'
+				},
 				401
 			);
 		}
@@ -177,25 +197,27 @@ export default class SessionController {
 	
 	async logout(
 		req: AccessEncAuthRequest,
-		res: Response
+		res: Response<{ success: boolean } | ErrorResponse>
 	): Promise<Response> {
-		const userId = new ObjectId(req.auth!.userId);
-		const sessionId = req.auth!.sessionId;
-		const visitorId = req.auth!.visitorId;
-		
+		const {
+			userId,
+			sessionId,
+			visitorId
+		} = req.auth!;
 		try {
 			await sessionService.logoutUserCurrentSessionByValues({
-				userId,
+				userId: new ObjectId(userId),
 				sessionId,
 				visitorId
 			});
-			
 			return responseUtils.success(res,
 				{success: true}
 			);
 		} catch (err: any) {
 			return responseUtils.error(res,
-				{error: err.message},
+				{
+					error: err.message ?? 'Unexpected error during logout'
+				},
 				500
 			);
 		}
