@@ -4,6 +4,7 @@ dotenv.config();
 
 import express from 'express';
 import Server from './index';
+import {logger} from './utils/logger.utils';
 
 const app = express();
 
@@ -14,6 +15,7 @@ const PORT: number = process.env.PORT ? parseInt(process.env.PORT,
 ) : 3001;
 
 if (isNaN(PORT)) {
+	logger.fatal('Invalid PORT value in environment variables');
 	throw new Error('Invalid PORT value in environment variables');
 }
 
@@ -25,13 +27,12 @@ if (isNaN(PORT)) {
 		await server.start(PORT);
 	} catch (err: unknown) {
 		if (err instanceof Error) {
-			console.error('Server failed to start:',
-				err.message,
-				err.stack
+			logger.fatal({err},
+				'Server failed to start'
 			);
 		} else {
-			console.error('Server failed to start with unknown error:',
-				err
+			logger.fatal({err},
+				'Server failed to start with unknown error'
 			);
 		}
 		process.exit(1);

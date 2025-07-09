@@ -7,6 +7,7 @@ import cors, {CorsOptions} from 'cors';
 import cookieParser from 'cookie-parser';
 import Routes from './routes';
 import MongoDatabase from './db';
+import {logger} from './utils/logger.utils';
 
 export default class Server {
 	private app: Application;
@@ -36,15 +37,15 @@ export default class Server {
 			.listen(port,
 				'localhost',
 				() => {
-					console.log(`Server running on port ${port}`);
+					logger.info(`Server listening on port ${port}`);
 				}
 			)
 			.on('error',
 				(err: NodeJS.ErrnoException) => {
 					if (err.code === 'EADDRINUSE') {
-						console.error('Port already in use');
+						logger.fatal('Port already in use');
 					} else {
-						console.error('Server error:',
+						logger.fatal('Server error:',
 							err
 						);
 					}

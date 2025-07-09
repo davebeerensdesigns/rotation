@@ -3,6 +3,7 @@ import {SessionEntity} from '../models/session.entity';
 import {UserEntity} from '../models/user.entity';
 import {NonceEntity} from '../models/nonce.entity';
 import {COLLECTIONS, DB_NAME, MONGODB_URI, REFRESH_TOKEN_EXPIRY_SECONDS} from './db.config';
+import {logger} from '../utils/logger.utils';
 
 export default class MongoDatabase {
 	private static instance: MongoDatabase;
@@ -15,6 +16,7 @@ export default class MongoDatabase {
 	
 	private constructor() {
 		if (!MONGODB_URI || !DB_NAME) {
+			logger.fatal('Missing MongoDB configuration. Check your .env file.');
 			throw new Error('Missing MongoDB configuration. Check your .env file.');
 		}
 		this.client = new MongoClient(MONGODB_URI);
@@ -35,7 +37,7 @@ export default class MongoDatabase {
 		await this.initIndexes();
 		this.isConnected = true;
 		
-		console.log('[MongoDatabase] Connected and initialized');
+		logger.info('[MongoDatabase] Connected and initialized');
 		
 		await this.cleanupExpiredSessions();
 	}
@@ -53,6 +55,7 @@ export default class MongoDatabase {
 	
 	private async initIndexes(): Promise<void> {
 		if (!this.usersCollection || !this.sessionsCollection || !this.nonceCollection) {
+			logger.fatal('Collections are not initialized before creating indexes.');
 			throw new Error('Collections are not initialized before creating indexes.');
 		}
 		
@@ -89,11 +92,12 @@ export default class MongoDatabase {
 		const expiryDate = new Date(Date.now() - REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
 		const result = await sessions.deleteMany({createdAt: {$lt: expiryDate}});
 		
-		console.log(`[MongoDatabase] Cleaned up ${result.deletedCount} expired sessions`);
+		logger.info(`[MongoDatabase] Cleaned up ${result.deletedCount} expired sessions`);
 	}
 	
 	public getUsersCollection(): Collection<UserEntity> {
 		if (!this.usersCollection) {
+			logger.fatal('MongoDatabase not connected: usersCollection is undefined');
 			throw new Error('MongoDatabase not connected: usersCollection is undefined');
 		}
 		return this.usersCollection;
@@ -101,6 +105,7 @@ export default class MongoDatabase {
 	
 	public getSessionsCollection(): Collection<SessionEntity> {
 		if (!this.sessionsCollection) {
+			logger.fatal('MongoDatabase not connected: sessionsCollection is undefined');
 			throw new Error('MongoDatabase not connected: sessionsCollection is undefined');
 		}
 		return this.sessionsCollection;
@@ -108,6 +113,7 @@ export default class MongoDatabase {
 	
 	public getNonceCollection(): Collection<NonceEntity> {
 		if (!this.nonceCollection) {
+			logger.fatal('MongoDatabase not connected: nonceCollection is undefined');
 			throw new Error('MongoDatabase not connected: nonceCollection is undefined');
 		}
 		return this.nonceCollection;
