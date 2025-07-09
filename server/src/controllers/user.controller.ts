@@ -1,11 +1,13 @@
 import {Response} from 'express';
+import {ObjectId} from 'mongodb';
 
 import {ResponseUtils} from '../utils/response.utils';
 import {UserService} from '../services/user.service';
 import {UserMapper} from '../mappers/user.mapper';
-import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
-import {ObjectId} from 'mongodb';
 import {AccessAuthRequest} from '../middlewares/verify-access-token.middleware';
+import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
+import {userUpdateSchema} from '../schemas/user.schema';
+import {UserResponseDto, UserUpdateDto} from '../dtos/user.dto';
 
 const userService = UserService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
@@ -13,18 +15,15 @@ const responseUtils = ResponseUtils.getInstance();
 export default class UserController {
 	async me(
 		req: AccessAuthRequest,
-		res: Response
+		res: Response<{ chainId: string; user: UserResponseDto }>
 	): Promise<Response> {
-		
 		const userId = new ObjectId(req.auth!.userId);
 		const chainId = req.auth!.chainId;
 		const user = await userService.getUserByUserId(userId);
 		
 		if (!user) {
 			return responseUtils.error(res,
-				{
-					error: 'No user found'
-				},
+				{error: 'No user found'},
 				401
 			);
 		}
@@ -39,14 +38,25 @@ export default class UserController {
 	
 	async update(
 		req: AccessEncAuthRequest,
-		res: Response
+		res: Response<{ user: UserResponseDto } | { error: string; details?: unknown }>
 	): Promise<Response> {
 		const userId = new ObjectId(req.auth!.userId);
+		const parsed = userUpdateSchema.safeParse(req.body);
+		
+		if (!parsed.success) {
+			return responseUtils.error(res,
+				{
+					error: 'Validation failed',
+					details: parsed.error.flatten()
+				},
+				400
+			);
+		}
 		
 		try {
 			const updatedUser = await userService.findAndUpdateUser({
 				userId,
-				data: req.body
+				data: parsed.data as UserUpdateDto
 			});
 			
 			if (!updatedUser) {
@@ -62,17 +72,11 @@ export default class UserController {
 				}
 			);
 		} catch (err: any) {
-			if (err.message === 'Validation failed') {
-				return responseUtils.error(res,
-					{
-						error: err.message,
-						details: err.details ?? undefined
-					},
-					400
-				);
-			}
 			return responseUtils.error(res,
-				{error: 'Unexpected error updating user'},
+				{
+					error: err.message ?? 'Unexpected error updating user',
+					details: err.details ?? undefined
+				},
 				500
 			);
 		}

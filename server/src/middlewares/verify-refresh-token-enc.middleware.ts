@@ -3,23 +3,14 @@ import {SessionUtils} from '../utils/session.utils';
 import {SessionService} from '../services/session.service';
 import {ResponseUtils} from '../utils/response.utils';
 import {ObjectId} from 'mongodb';
+import {RefreshTokenPayload} from '../types/auth.types';
 
 const sessionUtils = SessionUtils.getInstance();
 const sessionService = SessionService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
-export interface AuthPayload {
-	userId: string;
-	role: string;
-	chainId: string;
-	address: string;
-	sessionId: string;
-	visitorId: string;
-	refreshToken: string;
-}
-
 export interface RefreshEncAuthRequest extends Request {
-	auth?: AuthPayload;
+	auth?: RefreshTokenPayload;
 }
 
 export function verifyRefreshTokenEncMiddleware() {
@@ -79,7 +70,7 @@ export function verifyRefreshTokenEncMiddleware() {
 			};
 			
 			return next();
-		} catch (err: any) {
+		} catch {
 			return responseUtils.error(res,
 				{error: 'Invalid or expired access token'},
 				401

@@ -1,20 +1,13 @@
 import {Request, Response, NextFunction} from 'express';
 import {SessionUtils} from '../utils/session.utils';
 import {ResponseUtils} from '../utils/response.utils';
+import {AccessTokenPayload} from '../types/auth.types';
 
 const sessionUtils = SessionUtils.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
-export interface AuthPayload {
-	userId: string;
-	role: string;
-	chainId: string;
-	address: string;
-	accessToken: string;
-}
-
 export interface AccessAuthRequest extends Request {
-	auth?: AuthPayload;
+	auth?: AccessTokenPayload;
 }
 
 export function verifyAccessTokenMiddleware() {
@@ -33,17 +26,13 @@ export function verifyAccessTokenMiddleware() {
 			}
 			
 			const verified = await sessionUtils.verifyAccessToken(accessToken);
-			if (
-				!verified?.sub ||
-				!verified.address ||
-				!verified.role ||
-				!verified.chainId
-			) {
+			if (!verified?.sub || !verified.address || !verified.role || !verified.chainId) {
 				return responseUtils.error(res,
 					{error: 'Invalid access token payload'},
 					401
 				);
 			}
+			
 			req.auth = {
 				userId: verified.sub,
 				role: verified.role,
@@ -53,7 +42,7 @@ export function verifyAccessTokenMiddleware() {
 			};
 			
 			return next();
-		} catch (err: any) {
+		} catch {
 			return responseUtils.error(res,
 				{error: 'Invalid or expired access token'},
 				401

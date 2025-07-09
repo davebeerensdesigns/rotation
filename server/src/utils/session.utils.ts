@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import {compactDecrypt, CompactEncrypt, JWTPayload, jwtVerify, SignJWT} from 'jose';
 import {Request} from 'express';
-import {JwtPayload, PublicClaims} from '../types/jwt';
+import {JwtPayload, PublicClaims} from '../types/jwt.types';
 import {createHash} from 'node:crypto';
 
 dotenv.config();
