@@ -1,8 +1,9 @@
-import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
+import {FindOneAndUpdateOptions, ObjectId, UpdateFilter} from 'mongodb';
 import MongoDatabase from '../db';
-import {UserUpdateDto} from '../dtos/user.dto';
 import {UserEntity} from '../models/user.entity';
 import {userUpdateSchema} from '../schemas/user.schema';
+import {ValidationError} from '../errors/validation-error';
+import {UserDocument} from '../types/user.types';
 
 export class UserService {
 	private static instance: UserService;
@@ -23,7 +24,7 @@ export class UserService {
 	
 	public async findOrCreateUser(
 		address: string
-	): Promise<WithId<UserEntity>> {
+	): Promise<UserDocument> {
 		const users = this.getCollection();
 		
 		const update: UpdateFilter<UserEntity> = {
@@ -53,9 +54,8 @@ export class UserService {
 		return result;
 	}
 	
-	public async getUserByUserId(userId: ObjectId): Promise<UserEntity | null> {
+	public async getUserByUserId(userId: ObjectId): Promise<UserDocument | null> {
 		const users = this.getCollection();
-		
 		return await users.findOne({_id: userId});
 	}
 	
@@ -64,13 +64,13 @@ export class UserService {
 		data
 	}: {
 		userId: ObjectId,
-		data: UserUpdateDto
-	}): Promise<WithId<UserEntity> | null> {
+		data: unknown
+	}): Promise<UserDocument | null> {
 		const parsed = userUpdateSchema.safeParse(data);
 		if (!parsed.success) {
-			const error = new Error('Validation failed');
-			(error as any).details = parsed.error.format(); // optioneel
-			throw error;
+			throw new ValidationError('Validation failed',
+				parsed.error.flatten()
+			);
 		}
 		const users = this.getCollection();
 		const update: UpdateFilter<UserEntity> = {$set: parsed.data};

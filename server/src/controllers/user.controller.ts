@@ -6,8 +6,8 @@ import {UserService} from '../services/user.service';
 import {UserMapper} from '../mappers/user.mapper';
 import {AccessAuthRequest} from '../middlewares/verify-access-token.middleware';
 import {AccessEncAuthRequest} from '../middlewares/verify-access-token-enc.middleware';
-import {userUpdateSchema} from '../schemas/user.schema';
-import {UserResponseDto, UserUpdateDto} from '../dtos/user.dto';
+import {UserResponseDto} from '../dtos/user.dto';
+import {ValidationError} from '../errors/validation-error';
 
 const userService = UserService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
@@ -41,22 +41,11 @@ export default class UserController {
 		res: Response<{ user: UserResponseDto } | { error: string; details?: unknown }>
 	): Promise<Response> {
 		const userId = new ObjectId(req.auth!.userId);
-		const parsed = userUpdateSchema.safeParse(req.body);
-		
-		if (!parsed.success) {
-			return responseUtils.error(res,
-				{
-					error: 'Validation failed',
-					details: parsed.error.flatten()
-				},
-				400
-			);
-		}
 		
 		try {
 			const updatedUser = await userService.findAndUpdateUser({
 				userId,
-				data: parsed.data as UserUpdateDto
+				data: req.body
 			});
 			
 			if (!updatedUser) {
@@ -72,10 +61,19 @@ export default class UserController {
 				}
 			);
 		} catch (err: any) {
+			if (err instanceof ValidationError) {
+				return responseUtils.error(res,
+					{
+						error: err.message,
+						details: err.details
+					},
+					400
+				);
+			}
+			
 			return responseUtils.error(res,
 				{
-					error: err.message ?? 'Unexpected error updating user',
-					details: err.details ?? undefined
+					error: 'Unexpected error updating user'
 				},
 				500
 			);
