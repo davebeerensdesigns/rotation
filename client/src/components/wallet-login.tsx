@@ -4,10 +4,25 @@ import {WalletSheet} from '@/components/navbar/wallet-sheet';
 import {NetworkSelectButton} from '@/components/network-select-button';
 import {useSession} from 'next-auth/react';
 import {useAppKitAccount} from '@reown/appkit/react';
+import dynamic from 'next/dynamic';
 
-export const WalletLogin = (): JSX.Element => {
+const CustomConnectButton = dynamic(() => import('./custom-connect-button'),
+	{
+		ssr: false
+	}
+);
+
+export default function WalletLogin(): JSX.Element | null {
 	const {data: session} = useSession();
-	const {isConnected} = useAppKitAccount();
+	const {
+		isConnected,
+		status
+	} = useAppKitAccount();
+	
+	const isWalletReady = status !== 'reconnecting' && status !== 'connecting' && status !== undefined;
+	
+	if (!isWalletReady) return null;
+	
 	if (session?.address && isConnected) {
 		return (
 			<>
@@ -17,6 +32,6 @@ export const WalletLogin = (): JSX.Element => {
 		);
 	}
 	
-	return <appkit-connect-button size="sm" label="Connect wallet" loadingLabel="Loading..."/>;
-	
+	return <CustomConnectButton status={status} connected={isConnected}/>;
 };
+

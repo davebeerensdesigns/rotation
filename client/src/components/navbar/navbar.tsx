@@ -3,8 +3,14 @@
 import {NavMenu} from './nav-menu';
 import {NavigationSheet} from './navigation-sheet';
 import {ModeToggle} from '@/components/toggles/mode-toggle';
-import {WalletLogin} from '@/components/wallet-login';
 import {JSX} from 'react';
+import dynamic from 'next/dynamic';
+
+const WalletLogin = dynamic(() => import('../wallet-login'),
+	{
+		ssr: false
+	}
+);
 
 export function NavBar(): JSX.Element {
 	return (
@@ -21,4 +27,4 @@ export function NavBar(): JSX.Element {
 			</div>
 		</>
 	);
-};
+}

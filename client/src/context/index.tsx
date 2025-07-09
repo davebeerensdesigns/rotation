@@ -5,7 +5,8 @@ import {wagmiAdapter, projectId, siweConfig, metadata, chains, chainLogos} from 
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {State, WagmiProvider} from 'wagmi';
 import {
-	createAppKit, useAppKitAccount, useAppKitState, useWalletInfo
+	AppKit,
+	createAppKit
 } from '@reown/appkit/react';
 
 const queryClient = new QueryClient();
@@ -14,7 +15,7 @@ if (!projectId) {
 	throw new Error('Project ID is not defined');
 }
 
-createAppKit({
+export const modal: AppKit = createAppKit({
 	themeMode: 'dark',
 	adapters: [wagmiAdapter],
 	networks: chains,
