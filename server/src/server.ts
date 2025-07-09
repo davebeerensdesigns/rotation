@@ -17,7 +17,6 @@ if (isNaN(PORT)) {
 	throw new Error('Invalid PORT value in environment variables');
 }
 
-// TODO: correctly type every file
 // TODO: add tests
 // TODO: add logging
 
