@@ -1,7 +1,9 @@
 import MongoDatabase from '../db';
 import {generateNonce} from 'siwe';
 import {SessionUtils} from '../utils/session.utils';
+import {logger} from '../utils/logger.utils';
 
+const SERVICE = '[NonceService]';
 const sessionUtils = SessionUtils.getInstance();
 
 export class NonceService {
@@ -46,6 +48,10 @@ export class NonceService {
 			nonce,
 			visitorId: hashVisitorId
 		});
+		
+		if (!valid) {
+			logger.warn(`${SERVICE} Invalid nonce for visitor ${hashVisitorId}`);
+		}
 		
 		return valid !== null;
 	}

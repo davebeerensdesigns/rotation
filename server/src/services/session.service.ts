@@ -9,10 +9,13 @@ import {userCreateSchema} from '../schemas/user.schema';
 import {SessionMapper} from '../mappers/session.mapper';
 import {SiweMessage} from 'siwe';
 import {NonceService} from './nonce.service';
-import {LoginRequestDto, SessionLoginResponseDto, SessionResponseDto} from '../dtos/session.dto';
+import {SessionLoginResponseDto, SessionResponseDto} from '../dtos/session.dto';
 import {loginRequestSchema} from '../schemas/session.schema';
 import {ValidationError} from '../errors/validation-error';
 import {UserMapper} from '../mappers/user.mapper';
+import {logDevOnly, logger} from '../utils/logger.utils';
+
+const SERVICE = '[SessionService]';
 
 const sessionUtils = SessionUtils.getInstance();
 const nonceService = NonceService.getInstance();
@@ -25,7 +28,8 @@ export class SessionService {
 	private constructor() {
 		const projectIdEnv = process.env.PROJECT_ID || '';
 		if (!projectIdEnv) {
-			throw new Error('Project id is required');
+			logger.fatal(`${SERVICE} PROJECT_ID is missing in environment`);
+			throw new Error(`${SERVICE} PROJECT_ID is required`);
 		}
 		this.projectId = projectIdEnv;
 	}
@@ -50,7 +54,7 @@ export class SessionService {
 		const domain = process.env.CORS_HOST ?? 'localhost:3000';
 		const uri = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
 		const statement = 'Please sign with your account';
-		
+		logger.info(`${SERVICE} Generated message parameters`);
 		return {
 			domain,
 			uri,
@@ -61,6 +65,7 @@ export class SessionService {
 	public async loginAndCreateSession(input: unknown): Promise<SessionLoginResponseDto> {
 		const parsedLogin = loginRequestSchema.safeParse(input);
 		if (!parsedLogin.success) {
+			logger.info(`${SERVICE} Generated message parameters`);
 			throw new ValidationError('Validation failed',
 				parsedLogin.error.flatten()
 			);
@@ -83,10 +88,14 @@ export class SessionService {
 		
 		const parsedUser = userCreateSchema.safeParse({address});
 		if (!parsedUser.success) {
+			logger.warn(`${SERVICE} User data validation failed`);
 			throw new Error('Invalid user data');
 		}
 		
 		const user = await userService.findOrCreateUser(address);
+		logger.info(`${SERVICE} User authenticated: ${address} (${user._id})`);
+		logDevOnly(`${SERVICE} Login success for address ${address}`);
+		
 		const sessionId = uuidv4();
 		
 		const {
@@ -104,7 +113,8 @@ export class SessionService {
 		const decodedAccess = sessionUtils.decodeToken(accessToken);
 		const decodedRefresh = sessionUtils.decodeToken(refreshToken);
 		if (!decodedAccess?.exp || !decodedRefresh?.exp) {
-			throw new Error('Token expiry missing');
+			logger.error(`${SERVICE} Missing expiry in JWT tokens`);
+			throw new Error(`${SERVICE} Token expiry missing`);
 		}
 		
 		await this.removeAllSessionsByUserAndVisitorId({
@@ -153,7 +163,8 @@ export class SessionService {
 		});
 		
 		if (!validNonce) {
-			throw new Error('Invalid nonce');
+			logger.warn(`${SERVICE} Invalid nonce for visitorId`);
+			throw new Error(`${SERVICE} Invalid nonce`);
 		}
 		// The verifySignature is not working with social logins and emails with non deployed smart accounts.
 		// If this is needed then use:
@@ -176,9 +187,11 @@ export class SessionService {
 		});
 		
 		if (!isValid) {
-			throw new Error('Invalid signature');
+			logger.warn(`${SERVICE} Invalid signature for address ${address}`);
+			throw new Error(`${SERVICE} Invalid signature`);
 		}
 		
+		logger.debug(`${SERVICE} SIWE signature verified for address ${address}`);
 		return {
 			address,
 			chainId
@@ -208,7 +221,8 @@ export class SessionService {
 		
 		const user = await userService.getUserByUserId(userId);
 		if (!user || !user._id || !user.address) {
-			throw new Error('User not found');
+			logger.error(`${SERVICE} User not found for access token rotation`);
+			throw new Error(`${SERVICE} User not found`);
 		}
 		
 		const accessToken = await sessionUtils.generateAccessToken({
@@ -222,7 +236,8 @@ export class SessionService {
 		
 		const decoded = sessionUtils.decodeToken(accessToken);
 		if (!decoded?.exp) {
-			throw new Error('Access token is missing exp claim');
+			logger.error(`${SERVICE} Generated access token has no exp`);
+			throw new Error(`${SERVICE} Access token is missing exp claim`);
 		}
 		
 		await sessions.updateOne(
@@ -233,6 +248,7 @@ export class SessionService {
 			},
 			{$set: {accessRotatedAt: new Date()}}
 		);
+		logDevOnly(`${SERVICE} Rotated access token for user ${user._id} on session ${sessionId}`);
 		
 		return {
 			accessToken,
@@ -276,6 +292,8 @@ export class SessionService {
 			sessionId,
 			visitorId: hashVisitorId
 		});
+		logDevOnly(`${SERVICE} Logged out session ${sessionId} for user ${userId}`);
+		
 	}
 	
 	public async getAllSessionsMapped({
@@ -318,6 +336,7 @@ export class SessionService {
 			userId,
 			visitorId: hashVisitorId
 		});
+		logger.debug(`${SERVICE} Removed all sessions for user ${userId} with visitor`);
 	}
 	
 	private async storeSession({
@@ -359,5 +378,7 @@ export class SessionService {
 			},
 			{upsert: true}
 		);
+		logDevOnly(`${SERVICE} Stored session ${sessionId} for user ${userId}`);
+		
 	}
 }

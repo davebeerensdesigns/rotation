@@ -3,8 +3,10 @@ import {compactDecrypt, CompactEncrypt, JWTPayload, jwtVerify, SignJWT} from 'jo
 import {Request} from 'express';
 import {JwtPayload, PublicClaims} from '../types/jwt.types';
 import {createHash} from 'node:crypto';
+import {logger} from './logger.utils';
 
 dotenv.config();
+const UTILS = '[SessionUtils]';
 
 export class SessionUtils {
 	private static instance: SessionUtils;
@@ -42,7 +44,7 @@ export class SessionUtils {
 			this.refreshSecret.length !== 32 ||
 			this.encryptionSecret.length !== 32
 		) {
-			console.error('One or more secrets are not 256-bit (32 bytes) in length. Check your .env values.');
+			logger.fatal(`${UTILS} One or more secrets are not 256-bit (32 bytes) in length. Check your .env values.`);
 			process.exit(1);
 		}
 	}
@@ -228,7 +230,10 @@ export class SessionUtils {
 	
 	public async decryptNestedPayload(payload: JWTPayload): Promise<Record<string, any>> {
 		const enc = payload.enc as string;
-		if (!enc) throw new Error('Missing encrypted session payload');
+		if (!enc) {
+			logger.error(`${UTILS} Missing encrypted session payload`);
+			throw new Error(`${UTILS} Missing encrypted session payload`);
+		}
 		
 		const {plaintext} = await compactDecrypt(enc,
 			this.encryptionSecret

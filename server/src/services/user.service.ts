@@ -4,6 +4,9 @@ import {UserEntity} from '../models/user.entity';
 import {userUpdateSchema} from '../schemas/user.schema';
 import {ValidationError} from '../errors/validation-error';
 import {UserDocument} from '../types/user.types';
+import {logDevOnly, logger} from '../utils/logger.utils';
+
+const SERVICE = '[UserService]';
 
 export class UserService {
 	private static instance: UserService;
@@ -48,7 +51,8 @@ export class UserService {
 		);
 		
 		if (!result) {
-			throw new Error('[findOrCreateUser] Failed to create or fetch user.');
+			logger.error(`${SERVICE} Failed to find or create user for address ${address}`);
+			throw new Error(`${SERVICE} Failed to create or fetch user.`);
 		}
 		
 		return result;
@@ -75,6 +79,10 @@ export class UserService {
 		const users = this.getCollection();
 		const update: UpdateFilter<UserEntity> = {$set: parsed.data};
 		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
+		
+		logDevOnly(`${SERVICE} Updating user ${userId.toString()} with data:`,
+			parsed.data
+		);
 		
 		return await users.findOneAndUpdate({_id: userId},
 			update,

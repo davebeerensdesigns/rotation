@@ -4,10 +4,13 @@ import {SessionService} from '../services/session.service';
 import {ResponseUtils} from '../utils/response.utils';
 import {ObjectId} from 'mongodb';
 import {RefreshTokenPayload} from '../types/auth.types';
+import {logger, logDevOnly} from '../utils/logger.utils';
 
 const sessionUtils = SessionUtils.getInstance();
 const sessionService = SessionService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
+
+const MIDDLEWARE = '[verifyRefreshTokenEncMiddleware]';
 
 export interface RefreshEncAuthRequest extends Request {
 	auth?: RefreshTokenPayload;
@@ -22,6 +25,7 @@ export function verifyRefreshTokenEncMiddleware() {
 		try {
 			const refreshToken = sessionUtils.extractBearerToken(req);
 			if (!refreshToken) {
+				logger.warn(`${MIDDLEWARE} Missing Authorization header`);
 				return responseUtils.error(res,
 					{error: 'Missing or malformed Authorization header'},
 					401
@@ -37,6 +41,8 @@ export function verifyRefreshTokenEncMiddleware() {
 				!verified.sessionId ||
 				!verified.visitorId
 			) {
+				logger.warn(`${MIDDLEWARE} Incomplete token payload`);
+				logDevOnly(`${MIDDLEWARE} Payload: ${JSON.stringify(verified)}`);
 				return responseUtils.error(res,
 					{error: 'Invalid access token payload'},
 					401
@@ -53,6 +59,7 @@ export function verifyRefreshTokenEncMiddleware() {
 			const isValid = !!session && session.refreshToken === hashedInputToken;
 			
 			if (!isValid) {
+				logger.warn(`${MIDDLEWARE} Refresh token mismatch or revoked for user ${verified.sub}`);
 				return responseUtils.error(res,
 					{error: 'Token mismatch or revoked'},
 					401
@@ -69,8 +76,12 @@ export function verifyRefreshTokenEncMiddleware() {
 				refreshToken
 			};
 			
+			logDevOnly(`${MIDDLEWARE} Verified refresh token for user ${verified.sub}, session ${verified.sessionId}`);
 			return next();
-		} catch {
+		} catch (err: any) {
+			logger.error(`${MIDDLEWARE} Failed to verify encrypted refresh token:`,
+				err
+			);
 			return responseUtils.error(res,
 				{error: 'Invalid or expired access token'},
 				401

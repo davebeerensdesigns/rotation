@@ -30,4 +30,15 @@ if (env === 'development') {
 	});
 }
 
-export {logger};
+function logDevOnly(
+	msg: string,
+	data?: any
+) {
+	if (process.env.NODE_ENV === 'development') {
+		logger.debug(msg,
+			data
+		);
+	}
+}
+
+export {logger, logDevOnly};

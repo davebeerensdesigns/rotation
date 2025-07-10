@@ -6,6 +6,7 @@ import express from 'express';
 import Server from './index';
 import {logger} from './utils/logger.utils';
 
+const SERVER = '[Server]';
 const app = express();
 
 const server = new Server(app);
@@ -15,7 +16,7 @@ const PORT: number = process.env.PORT ? parseInt(process.env.PORT,
 ) : 3001;
 
 if (isNaN(PORT)) {
-	logger.fatal('Invalid PORT value in environment variables');
+	logger.fatal('[Server] Invalid PORT value in environment variables');
 	throw new Error('Invalid PORT value in environment variables');
 }
 
@@ -28,11 +29,11 @@ if (isNaN(PORT)) {
 	} catch (err: unknown) {
 		if (err instanceof Error) {
 			logger.fatal({err},
-				'Server failed to start'
+				`${SERVER} Failed to start`
 			);
 		} else {
 			logger.fatal({err},
-				'Server failed to start with unknown error'
+				`${SERVER} Failed to start with unknown error`
 			);
 		}
 		process.exit(1);

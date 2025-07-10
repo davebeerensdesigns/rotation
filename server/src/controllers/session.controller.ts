@@ -21,9 +21,11 @@ import {
 	SessionResponseDto,
 	VerifyRequestDto
 } from '../dtos/session.dto';
-import {UserResponseDto} from '../dtos/user.dto';
 import {ErrorResponse} from '../dtos/error.dto';
 import {ValidationError} from '../errors/validation-error';
+import {logDevOnly, logger} from '../utils/logger.utils';
+
+const CONTROLLER = '[SessionController]';
 
 const sessionService = SessionService.getInstance();
 const nonceService = NonceService.getInstance();
@@ -31,15 +33,19 @@ const responseUtils = ResponseUtils.getInstance();
 
 export default class SessionController {
 	async nonce(
-		req: Request<{}, {}, NonceRequestDto>,
+		req: Request<Record<string, never>, unknown, NonceRequestDto>,
 		res: Response<{ nonce: string } | ErrorResponse>
 	): Promise<Response> {
 		try {
 			const nonce = await nonceService.generateAndSaveNonce(req.body.visitorId);
+			logger.debug(`${CONTROLLER} Generated nonce for visitor`);
 			return responseUtils.success(res,
 				{nonce}
 			);
 		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to generate nonce:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: err.message ?? 'Unexpected error generating nonce'
@@ -55,10 +61,14 @@ export default class SessionController {
 	): Promise<Response> {
 		try {
 			const data = await sessionService.getMessageParams();
+			logger.debug(`${CONTROLLER} Retrieved message params`);
 			return responseUtils.success(res,
 				data
 			);
-		} catch {
+		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to retrieve message params:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: 'Failed to retrieve message params'
@@ -69,7 +79,7 @@ export default class SessionController {
 	}
 	
 	async verify(
-		req: Request<{}, {}, VerifyRequestDto>,
+		req: Request<Record<string, never>, unknown, VerifyRequestDto>,
 		res: Response<SessionLoginResponseDto | ErrorResponse>
 	): Promise<Response> {
 		const ipAddress = req.body.ipAddress || getClientIp(req);
@@ -79,6 +89,9 @@ export default class SessionController {
 				...req.body,
 				ipAddress
 			});
+			
+			logger.info(`${CONTROLLER} Verified and logged in user: ${result.address}`);
+			logDevOnly(`${CONTROLLER} Tokens issued for ${result.address}`);
 			
 			return responseUtils.success(res,
 				{
@@ -93,6 +106,9 @@ export default class SessionController {
 			);
 		} catch (err: any) {
 			if (err instanceof ValidationError) {
+				logger.warn(`${CONTROLLER} Validation failed during login:`,
+					err.details
+				);
 				return responseUtils.error(res,
 					{
 						error: err.message,
@@ -101,6 +117,9 @@ export default class SessionController {
 					400
 				);
 			}
+			logger.error(`${CONTROLLER} Unexpected error during login:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: err.message ?? 'Unexpected error verifying session',
@@ -120,10 +139,12 @@ export default class SessionController {
 			visitorId
 		} = req.auth!;
 		if (sessionId && visitorId) {
+			logger.debug(`${CONTROLLER} Session valid: ${sessionId}`);
 			return responseUtils.success(res,
 				{valid: true}
 			);
 		}
+		logger.warn(`${CONTROLLER} No valid session found`);
 		return responseUtils.error(res,
 			{error: 'No session found'},
 			401
@@ -145,10 +166,14 @@ export default class SessionController {
 				currentSessionId: sessionId,
 				currentVisitorId: visitorId
 			});
+			logger.debug(`${CONTROLLER} Retrieved ${sessions.length} sessions for user ${userId}`);
 			return responseUtils.success(res,
 				sessions
 			);
-		} catch {
+		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to get all sessions:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: 'Unexpected error retrieving sessions'
@@ -182,10 +207,14 @@ export default class SessionController {
 				chainId,
 				role
 			});
+			logger.info(`${CONTROLLER} Rotated access token for user ${userId} (session ${sessionId})`);
 			return responseUtils.success(res,
 				result
 			);
 		} catch (err: any) {
+			logger.warn(`${CONTROLLER} Failed to rotate access token for session ${sessionId}:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: err.message ?? 'Failed to refresh session'
@@ -210,10 +239,14 @@ export default class SessionController {
 				sessionId,
 				visitorId
 			});
+			logger.info(`${CONTROLLER} Logged out session ${sessionId} for user ${userId}`);
 			return responseUtils.success(res,
 				{success: true}
 			);
 		} catch (err: any) {
+			logger.error(`${CONTROLLER} Logout failed for user ${userId}, session ${sessionId}:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
 					error: err.message ?? 'Unexpected error during logout'
