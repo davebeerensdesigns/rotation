@@ -21,7 +21,6 @@ if (isNaN(PORT)) {
 }
 
 // TODO: add tests
-// TODO: add logging
 
 (async () => {
 	try {
