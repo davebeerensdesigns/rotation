@@ -4,7 +4,7 @@ dotenv.config();
 
 import express from 'express';
 import Server from './index';
-import {logger} from './utils/logger.utils';
+import {logger} from './shared/utils/logger.utils';
 
 const SERVER = '[Server]';
 const app = express();

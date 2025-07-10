@@ -62,7 +62,7 @@ let isLoggingOut = false;
 export const siweConfig = createSIWEConfig({
 	getMessageParams: async () => {
 		try {
-			const res = await fetch('/api/session/message-params',
+			const res = await fetch('/api/siwe/message-params',
 				{
 					method: 'GET',
 					headers: {'Accept': 'application/json'}
@@ -94,7 +94,7 @@ export const siweConfig = createSIWEConfig({
 		const fp = await FingerprintJS.load();
 		const {visitorId} = await fp.get();
 		
-		const res = await fetch('/api/session/nonce',
+		const res = await fetch('/api/siwe/nonce',
 			{
 				method: 'POST',
 				headers: {

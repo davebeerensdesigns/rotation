@@ -5,10 +5,10 @@ dotenv.config();
 import express, {Application} from 'express';
 import cors, {CorsOptions} from 'cors';
 import cookieParser from 'cookie-parser';
-import Routes from './routes';
-import MongoDatabase from './db';
-import {logger} from './utils/logger.utils';
-import {requestLoggerMiddleware} from './middlewares/request-logger.middleware';
+import Routes from './shared/routes';
+import MongoDatabase from './shared/db';
+import {logger} from './shared/utils/logger.utils';
+import {requestLoggerMiddleware} from './shared/middlewares/request-logger.middleware';
 
 const SERVER = '[Server]';
 export default class Server {

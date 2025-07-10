@@ -23,7 +23,7 @@ export async function verifySIWEAuth({
 			return null;
 		}
 		
-		const res = await fetch(`${domainUrl}/api/session/verify`,
+		const res = await fetch(`${domainUrl}/api/siwe/verify`,
 			{
 				method: 'POST',
 				headers: {
