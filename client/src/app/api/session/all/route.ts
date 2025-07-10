@@ -1,8 +1,13 @@
-import {auth} from '@/auth'; // uit je middleware-config, dus werkt
+import {auth} from '@/auth';
 import {NextResponse} from 'next/server';
 
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
+
 export async function GET() {
-	const session = await auth(); // hiermee krijg je de sessie (JWT-strategie)
+	const session = await auth();
 	
 	if (!session || !session.user?.accessToken) {
 		return NextResponse.json({error: 'Unauthorized'},
@@ -11,7 +16,7 @@ export async function GET() {
 	}
 	
 	try {
-		const backendRes = await fetch('http://localhost:3001/api/session/all',
+		const backendRes = await fetch(`${serverUrl}/api/session/all`,
 			{
 				method: 'GET',
 				headers: {

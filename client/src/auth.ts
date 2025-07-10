@@ -1,26 +1,17 @@
 import NextAuth, {Session, User} from 'next-auth';
 import {JWT} from 'next-auth/jwt';
 import authConfig from '@/auth.config';
+import {AdapterUser} from '@auth/core/adapters';
 
-/**
- * The NEXTAUTH_SECRET environment variable must be set for secure JWT encryption.
- * Throws an error during startup if missing.
- */
 const nextAuthSecret = process.env.NEXTAUTH_SECRET;
 if (!nextAuthSecret) {
 	throw new Error('NEXTAUTH_SECRET is not set');
 }
+const serverUrl = process.env.SERVER_DOMAIN;
+if (!serverUrl) {
+	throw new Error('SERVER_DOMAIN is not set');
+}
 
-/**
- * Initializes NextAuth authentication and exports standard handlers and helpers.
- *
- * Exports:
- * - GET: NextAuth GET handler
- * - POST: NextAuth POST handler
- * - auth: Middleware-compatible function for protecting routes
- * - signIn: Client helper to trigger sign-in
- * - signOut: Client helper to trigger sign-out
- */
 export const {
 	handlers: {
 		GET,
@@ -36,54 +27,56 @@ export const {
 	},
 	...authConfig,
 	callbacks: {
-		/**
-		 * Custom JWT callback to persist access token and refresh it if expired.
-		 *
-		 * @param {Object} param
-		 * @param {User} param.user - The user object (only on login).
-		 * @param {JWT} param.token - The current JWT token object.
-		 * @returns {Promise<JWT>} The updated JWT token.
-		 */
 		async jwt({
-			user,
 			token,
+			user,
 			trigger,
 			session
 		}: {
 			token: JWT;
-			user: User;
+			user: User | AdapterUser;
 			trigger?: 'signIn' | 'signUp' | 'update' | undefined;
-			session?: Session;
-		}): Promise<JWT> {
-			// Initial sign-in: merge user data into token
+			session?: Session
+		}): Promise<JWT | null> {
+			const now = Math.floor(Date.now() / 1000);
+			
 			if (trigger === 'update' && session?.user) {
 				token.name = session.user.name ?? token.name ?? null;
 				token.email = session.user.email ?? token.email ?? null;
 				token.picture = session.user.picture ?? token.picture ?? null;
 			}
-			if (user) {
-				token.address = user.address;
-				token.chainId = user.chainId;
-				token.accessTokenExpires = user.accessTokenExpires;
-				token.accessToken = user.accessToken;
-				token.refreshToken = user.refreshToken;
-				token.userId = user.userId;
-				token.role = user.role;
-				token.name = user.name || null;
-				token.email = user.email || null;
-				token.picture = user.picture || null;
+			
+			if (trigger === 'update' && session?.error) {
+				token.error = session.error ?? token.error ?? undefined;
 			}
 			
-			const nowInSeconds = Math.floor(Date.now() / 1000);
+			if (user) {
+				token.userId = user.userId;
+				token.address = user.address;
+				token.chainId = user.chainId;
+				token.role = user.role;
+				token.accessToken = user.accessToken;
+				token.accessTokenExpires = user.accessTokenExpires;
+				token.refreshToken = user.refreshToken;
+				token.refreshTokenExpires = user.refreshTokenExpires;
+				token.name = user.name ?? null;
+				token.email = user.email ?? null;
+				token.picture = user.picture ?? null;
+			}
 			
-			// Access token still valid
-			if (token.accessTokenExpires && nowInSeconds < token.accessTokenExpires) {
+			if (token.accessTokenExpires && now < token.accessTokenExpires) {
 				return token;
 			}
 			
-			// Access token expired — try refresh
+			if (token.refreshTokenExpires && now > token.refreshTokenExpires) {
+				return {
+					...token,
+					error: 'RefreshAccessTokenError'
+				};
+			}
+			
 			try {
-				const response = await fetch('http://localhost:3001/api/session/refresh',
+				const backendRes = await fetch(`${serverUrl}/api/session/refresh`,
 					{
 						method: 'POST',
 						headers: {
@@ -92,8 +85,7 @@ export const {
 						}
 					}
 				);
-				
-				const json = await response.json();
+				const json = await backendRes.json();
 				
 				if (json.status !== 'success') {
 					return {
@@ -104,48 +96,70 @@ export const {
 				
 				return {
 					...token,
-					accessTokenExpires: json.data.accessTokenExpires,
-					accessToken: json.data.accessToken
+					accessToken: json.data.accessToken,
+					accessTokenExpires: json.data.accessTokenExpires
 				};
-			} catch (error) {
+			} catch {
 				return {
 					...token,
 					error: 'RefreshAccessTokenError'
 				};
 			}
 		},
-		
-		/**
-		 * Custom session callback to include token data in the session.
-		 *
-		 * @param {Object} param
-		 * @param {Session} param.session - The session object returned to the client.
-		 * @param {JWT} param.token - The JWT token object.
-		 * @returns {Promise<Session>} The updated session object.
-		 */
 		async session({
 			session,
 			token
-		}: { session: Session; token: JWT }): Promise<Session> {
-			
-			const [, chainNumber] = token.chainId.split(':');
+		}: { session: Session, token: JWT }) {
+			const chainPart = token.chainId ?? 'eip155:0';
+			const [, chainNumber] = chainPart.split(':');
 			const parsedChainId = parseInt(chainNumber,
 				10
 			);
+			
 			session.error = token.error;
 			session.address = token.address;
 			session.chainId = parsedChainId;
+			
+			session.user.userId = token.userId;
 			session.user.address = token.address;
 			session.user.chainId = token.chainId;
+			session.user.role = token.role;
 			session.user.accessToken = token.accessToken;
 			session.user.accessTokenExpires = token.accessTokenExpires;
-			session.user.userId = token.userId;
-			session.user.role = token.role;
-			session.user.name = token.name || null;
-			session.user.email = token.email || null;
-			session.user.picture = token.picture || null;
+			session.user.name = token.name ?? null;
+			session.user.email = token.email ?? null;
+			session.user.picture = token.picture ?? null;
 			
 			return session;
+		}
+	},
+	events: {
+		async signOut(message) {
+			if ('token' in message && message.token) {
+				const {
+					accessToken
+				} = message.token;
+				
+				try {
+					if (accessToken) {
+						await fetch(`${serverUrl}/api/session/logout`,
+							{
+								method: 'POST',
+								headers: {
+									'Authorization': `Bearer ${accessToken}`,
+									'Content-Type': 'application/json'
+								}
+							}
+						);
+					}
+					
+					console.log('[signOut] JWT session revoked');
+				} catch (e) {
+					console.error('[signOut] Revoke failed',
+						e
+					);
+				}
+			}
 		}
 	}
 });

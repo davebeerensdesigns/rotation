@@ -1,28 +1,37 @@
 'use client';
-
 import {JSX} from 'react';
 import {WalletSheet} from '@/components/navbar/wallet-sheet';
 import {NetworkSelectButton} from '@/components/network-select-button';
 import {useSession} from 'next-auth/react';
+import {useAppKitAccount} from '@reown/appkit/react';
+import dynamic from 'next/dynamic';
 
-/**
- * WalletLogin component that renders the AppKit Web Component button.
- *
- * This component displays the `<appkit-button/>` Web Component used to initiate
- * wallet-based authentication via Reown AppKit.
- *
- * @returns {JSX.Element} A React element containing the AppKit login button.
- */
-export const WalletLogin = (): JSX.Element => {
-	const {status} = useSession();
-	if (status === 'authenticated') {
+const CustomConnectButton = dynamic(() => import('./custom-connect-button'),
+	{
+		ssr: false
+	}
+);
+
+export default function WalletLogin(): JSX.Element | null {
+	const {data: session} = useSession();
+	const {
+		isConnected,
+		status
+	} = useAppKitAccount();
+	
+	const isWalletReady = status !== 'reconnecting' && status !== 'connecting' && status !== undefined;
+	
+	if (!isWalletReady) return null;
+	
+	if (session?.address && isConnected) {
 		return (
 			<>
 				<NetworkSelectButton/>
 				<WalletSheet/>
 			</>
 		);
-	} else {
-		return (<appkit-connect-button size="sm" label="Connect login" loadingLabel="Loading..."/>);
 	}
+	
+	return <CustomConnectButton status={status} connected={isConnected}/>;
 };
+

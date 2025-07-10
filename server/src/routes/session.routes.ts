@@ -1,5 +1,7 @@
 import {Router} from 'express';
 import SessionController from '../controllers/session.controller';
+import {verifyAccessTokenEncMiddleware} from '../middlewares/verify-access-token-enc.middleware';
+import {verifyRefreshTokenEncMiddleware} from '../middlewares/verify-refresh-token-enc.middleware';
 
 class SessionRoutes {
 	public router = Router();
@@ -10,23 +12,30 @@ class SessionRoutes {
 	}
 	
 	private initializeRoutes(): void {
-		this.router.get('/',
-			this.controller.session
-		);
-		this.router.get('/all',
-			this.controller.sessionAll
-		);
-		this.router.get('/nonce',
+		this.router.post('/nonce',
 			this.controller.nonce
+		);
+		this.router.get('/message-params',
+			this.controller.messageParams
 		);
 		this.router.post('/verify',
 			this.controller.verify
 		);
-		this.router.post('/refresh',
-			this.controller.refresh
-		);
 		this.router.post('/logout',
+			verifyAccessTokenEncMiddleware(),
 			this.controller.logout
+		);
+		this.router.get('/',
+			verifyAccessTokenEncMiddleware(),
+			this.controller.session
+		);
+		this.router.get('/all',
+			verifyAccessTokenEncMiddleware(),
+			this.controller.sessionAll
+		);
+		this.router.post('/refresh',
+			verifyRefreshTokenEncMiddleware(),
+			this.controller.refresh
 		);
 	}
 }

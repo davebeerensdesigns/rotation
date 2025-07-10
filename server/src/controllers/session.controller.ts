@@ -1,206 +1,223 @@
 import {Request, Response} from 'express';
-import {generateNonce} from 'siwe';
+import {ObjectId} from 'mongodb';
 
-import {SessionUtils} from '../utils/session.utils';
-import {UserService} from '../services/user.service';
 import {ResponseUtils} from '../utils/response.utils';
 import {SessionService} from '../services/session.service';
-
+import {NonceService} from '../services/nonce.service';
 import {UserMapper} from '../mappers/user.mapper';
-import {ObjectId} from 'mongodb';
-import {userCreateSchema} from '../schemas/user.schema';
-import {SessionMapper} from '../mappers/session.mapper';
+import {getClientIp} from '../utils/ip.utils';
 
-const sessionUtils = SessionUtils.getInstance();
-const userService = UserService.getInstance();
+import {
+	AccessEncAuthRequest
+} from '../middlewares/verify-access-token-enc.middleware';
+
+import {
+	RefreshEncAuthRequest
+} from '../middlewares/verify-refresh-token-enc.middleware';
+
+import {
+	MessageParamsDto,
+	NonceRequestDto, SessionLoginResponseDto,
+	SessionResponseDto,
+	VerifyRequestDto
+} from '../dtos/session.dto';
+import {ErrorResponse} from '../dtos/error.dto';
+import {ValidationError} from '../errors/validation-error';
+import {logDevOnly, logger} from '../utils/logger.utils';
+
+const CONTROLLER = '[SessionController]';
+
 const sessionService = SessionService.getInstance();
+const nonceService = NonceService.getInstance();
 const responseUtils = ResponseUtils.getInstance();
 
 export default class SessionController {
 	async nonce(
+		req: Request<Record<string, never>, unknown, NonceRequestDto>,
+		res: Response<{ nonce: string } | ErrorResponse>
+	): Promise<Response> {
+		try {
+			const nonce = await nonceService.generateAndSaveNonce(req.body.visitorId);
+			logger.debug(`${CONTROLLER} Generated nonce for visitor`);
+			return responseUtils.success(res,
+				{nonce}
+			);
+		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to generate nonce:`,
+				err
+			);
+			return responseUtils.error(res,
+				{
+					error: err.message ?? 'Unexpected error generating nonce'
+				},
+				500
+			);
+		}
+	}
+	
+	async messageParams(
 		req: Request,
-		res: Response
-	): Promise<void> {
-		const nonce = generateNonce();
-		res.setHeader('Content-Type',
-			'text/plain'
-		);
-		res.send(nonce);
+		res: Response<MessageParamsDto | ErrorResponse>
+	): Promise<Response> {
+		try {
+			const data = await sessionService.getMessageParams();
+			logger.debug(`${CONTROLLER} Retrieved message params`);
+			return responseUtils.success(res,
+				data
+			);
+		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to retrieve message params:`,
+				err
+			);
+			return responseUtils.error(res,
+				{
+					error: 'Failed to retrieve message params'
+				},
+				500
+			);
+		}
 	}
 	
 	async verify(
-		req: Request,
-		res: Response
+		req: Request<Record<string, never>, unknown, VerifyRequestDto>,
+		res: Response<SessionLoginResponseDto | ErrorResponse>
 	): Promise<Response> {
+		const ipAddress = req.body.ipAddress || getClientIp(req);
 		
 		try {
-			// Take data from body
-			const {
-				message,
-				signature,
-				userAgent,
-				visitorId
-			} = req.body;
-			
-			if (!message || !signature) {
-				return responseUtils.error(res,
-					{
-						error: 'SiweMessage is undefined or incomplete'
-					},
-					400
-				);
-			}
-			if (!userAgent || !visitorId) {
-				return responseUtils.error(res,
-					{
-						error: 'Missing userAgent or visitorId'
-					},
-					400
-				);
-			}
-			
-			// Verify message and signature
-			const {
-				address,
-				chainId
-			} = await sessionService.verifySiweSignature(
-				message,
-				signature
-			);
-			
-			// Parse address and chainId
-			const parsed = userCreateSchema.safeParse({
-				address
+			const result = await sessionService.loginAndCreateSession({
+				...req.body,
+				ipAddress
 			});
 			
-			if (!parsed.success) {
-				return responseUtils.error(res,
-					{
-						error: 'Invalid user data',
-						details: parsed.error.flatten()
-					},
-					400
-				);
-			}
-			
-			// Find or create the user
-			const user = await userService.findOrCreateUser(
-				address
-			);
-			
-			// Create a random sessionId
-			const sessionId = new ObjectId().toString();
-			
-			// Generate accessToken and refreshToken
-			const {
-				accessToken,
-				refreshToken
-			} = sessionUtils.generateTokens(
-				user._id.toString(),
-				user.role,
-				sessionId,
-				visitorId,
-				chainId
-			);
-			
-			// Decode accessToken to get token exp
-			const decodedAccess = sessionUtils.decodeToken(accessToken);
-			const accessTokenExpires = decodedAccess?.exp;
-			
-			// Store the session in database
-			await sessionService.storeSession(
-				user._id,
-				refreshToken,
-				chainId,
-				userAgent,
-				visitorId,
-				sessionId
-			);
+			logger.info(`${CONTROLLER} Verified and logged in user: ${result.address}`);
+			logDevOnly(`${CONTROLLER} Tokens issued for ${result.address}`);
 			
 			return responseUtils.success(res,
 				{
-					accessToken,
-					refreshToken,
-					accessTokenExpires,
-					chainId,
-					user: UserMapper.toResponse(user)
+					accessToken: result.accessToken,
+					refreshToken: result.refreshToken,
+					accessTokenExpires: result.accessTokenExpires,
+					refreshTokenExpires: result.refreshTokenExpires,
+					chainId: result.chainId,
+					address: result.address,
+					user: UserMapper.toResponse(result.user)
 				}
 			);
 		} catch (err: any) {
+			if (err instanceof ValidationError) {
+				logger.warn(`${CONTROLLER} Validation failed during login:`,
+					err.details
+				);
+				return responseUtils.error(res,
+					{
+						error: err.message,
+						details: err.details
+					},
+					400
+				);
+			}
+			logger.error(`${CONTROLLER} Unexpected error during login:`,
+				err
+			);
 			return responseUtils.error(res,
-				{error: err.message},
+				{
+					error: err.message ?? 'Unexpected error verifying session',
+					details: err.details ?? undefined
+				},
 				500
 			);
 		}
 	}
 	
 	async session(
-		req: Request,
-		res: Response
+		req: AccessEncAuthRequest,
+		res: Response<{ valid: boolean } | ErrorResponse>
 	): Promise<Response> {
-		try {
-			// Take accessToken from bearer header
-			const accessToken = sessionUtils.extractBearerToken(req);
-			if (!accessToken) {
-				return responseUtils.error(res,
-					{error: 'Missing access token'},
-					401
-				);
-			}
-			
-			// Find the exact user session by userId, sessionId and visitorId
-			const session = await sessionService.findExactSession(accessToken);
-			
-			if (!session) {
-				return responseUtils.error(res,
-					{error: 'SessionEntity not found or revoked'},
-					401
-				);
-			}
-			
+		const {
+			sessionId,
+			visitorId
+		} = req.auth!;
+		if (sessionId && visitorId) {
+			logger.debug(`${CONTROLLER} Session valid: ${sessionId}`);
 			return responseUtils.success(res,
 				{valid: true}
 			);
+		}
+		logger.warn(`${CONTROLLER} No valid session found`);
+		return responseUtils.error(res,
+			{error: 'No session found'},
+			401
+		);
+	}
+	
+	async sessionAll(
+		req: AccessEncAuthRequest,
+		res: Response<SessionResponseDto[] | ErrorResponse>
+	): Promise<Response> {
+		const {
+			userId,
+			sessionId,
+			visitorId
+		} = req.auth!;
+		try {
+			const sessions = await sessionService.getAllSessionsMapped({
+				userId: new ObjectId(userId),
+				currentSessionId: sessionId,
+				currentVisitorId: visitorId
+			});
+			logger.debug(`${CONTROLLER} Retrieved ${sessions.length} sessions for user ${userId}`);
+			return responseUtils.success(res,
+				sessions
+			);
 		} catch (err: any) {
+			logger.error(`${CONTROLLER} Failed to get all sessions:`,
+				err
+			);
 			return responseUtils.error(res,
-				{error: err.message},
+				{
+					error: 'Unexpected error retrieving sessions'
+				},
 				500
 			);
 		}
 	}
 	
 	async refresh(
-		req: Request,
-		res: Response
+		req: RefreshEncAuthRequest,
+		res: Response<{
+			accessToken: string;
+			accessTokenExpires: number;
+		} | ErrorResponse>
 	): Promise<Response> {
-		// Take refreshToken from bearer header
-		const refreshToken = sessionUtils.extractBearerToken(req);
-		if (!refreshToken) {
-			return responseUtils.error(res,
-				{
-					error: 'Missing refreshToken'
-				},
-				400
-			);
-		}
-		
+		const {
+			userId,
+			visitorId,
+			sessionId,
+			address,
+			chainId,
+			role
+		} = req.auth!;
 		try {
-			// Verify refreshToken and generate new accessToken
-			const {
-				accessToken,
-				accessTokenExpires
-			} = await sessionService.refreshAccessToken(refreshToken);
-			
+			const result = await sessionService.rotateAccessToken({
+				userId: new ObjectId(userId),
+				visitorId,
+				sessionId,
+				address,
+				chainId,
+				role
+			});
+			logger.info(`${CONTROLLER} Rotated access token for user ${userId} (session ${sessionId})`);
 			return responseUtils.success(res,
-				{
-					accessToken,
-					accessTokenExpires
-				}
+				result
 			);
 		} catch (err: any) {
+			logger.warn(`${CONTROLLER} Failed to rotate access token for session ${sessionId}:`,
+				err
+			);
 			return responseUtils.error(res,
 				{
-					error: err.message
+					error: err.message ?? 'Failed to refresh session'
 				},
 				401
 			);
@@ -208,67 +225,32 @@ export default class SessionController {
 	}
 	
 	async logout(
-		req: Request,
-		res: Response
+		req: AccessEncAuthRequest,
+		res: Response<{ success: boolean } | ErrorResponse>
 	): Promise<Response> {
-		// Take accessToken from bearer header
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{
-					error: 'Authorization header missing or malformed'
-				},
-				401
-			);
-		}
-		
+		const {
+			userId,
+			sessionId,
+			visitorId
+		} = req.auth!;
 		try {
-			// Logout user current session
-			await sessionService.logoutUserCurrentSession(accessToken);
+			await sessionService.logoutUserCurrentSessionByValues({
+				userId: new ObjectId(userId),
+				sessionId,
+				visitorId
+			});
+			logger.info(`${CONTROLLER} Logged out session ${sessionId} for user ${userId}`);
 			return responseUtils.success(res,
 				{success: true}
 			);
 		} catch (err: any) {
-			return responseUtils.error(res,
-				{
-					error: err.message
-				},
-				401
-			);
-		}
-	}
-	
-	async sessionAll(
-		req: Request,
-		res: Response
-	): Promise<Response> {
-		const accessToken = sessionUtils.extractBearerToken(req);
-		if (!accessToken) {
-			return responseUtils.error(res,
-				{error: 'Authorization header missing or malformed'},
-				401
-			);
-		}
-		
-		try {
-			const sessions = await sessionService.getAllUserSessionsFromAccessTokenSub(accessToken);
-			if (sessions === null) {
-				return responseUtils.error(res,
-					{error: 'Invalid or expired access token'},
-					401
-				);
-			}
-			
-			return responseUtils.success(res,
-				SessionMapper.toResponseArray(sessions)
-			);
-			
-		} catch (err: any) {
-			console.error('[SESSION] Failed to load sessions:',
+			logger.error(`${CONTROLLER} Logout failed for user ${userId}, session ${sessionId}:`,
 				err
 			);
 			return responseUtils.error(res,
-				{error: 'Unexpected error retrieving sessions'},
+				{
+					error: err.message ?? 'Unexpected error during logout'
+				},
 				500
 			);
 		}

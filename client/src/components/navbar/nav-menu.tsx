@@ -7,13 +7,11 @@ import {
 } from '@/components/ui/navigation-menu';
 import {NavigationMenuProps} from '@radix-ui/react-navigation-menu';
 import Link from 'next/link';
+import {JSX} from 'react';
 import {useSession} from 'next-auth/react';
 
-export function NavMenu(props: NavigationMenuProps) {
-	
-	const {
-		status
-	} = useSession();
+export const NavMenu = (props: NavigationMenuProps): JSX.Element => {
+	const {data: session} = useSession();
 	
 	return (
 		<NavigationMenu {...props}>
@@ -24,7 +22,7 @@ export function NavMenu(props: NavigationMenuProps) {
 						<Link href="/">Home</Link>
 					</NavigationMenuLink>
 				</NavigationMenuItem>
-				{status === 'authenticated' && (<>
+				{session?.address && (<>
 						<NavigationMenuItem>
 							<NavigationMenuLink asChild>
 								<Link href="/profile">Profile</Link>
@@ -40,4 +38,4 @@ export function NavMenu(props: NavigationMenuProps) {
 			</NavigationMenuList>
 		</NavigationMenu>
 	);
-}
+};

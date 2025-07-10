@@ -1,7 +1,12 @@
-import {FindOneAndUpdateOptions, ObjectId, UpdateFilter, WithId} from 'mongodb';
+import {FindOneAndUpdateOptions, ObjectId, UpdateFilter} from 'mongodb';
 import MongoDatabase from '../db';
-import {UserUpdateDto} from '../dtos/user.dto';
 import {UserEntity} from '../models/user.entity';
+import {userUpdateSchema} from '../schemas/user.schema';
+import {ValidationError} from '../errors/validation-error';
+import {UserDocument} from '../types/user.types';
+import {logDevOnly, logger} from '../utils/logger.utils';
+
+const SERVICE = '[UserService]';
 
 export class UserService {
 	private static instance: UserService;
@@ -22,7 +27,7 @@ export class UserService {
 	
 	public async findOrCreateUser(
 		address: string
-	): Promise<WithId<UserEntity>> {
+	): Promise<UserDocument> {
 		const users = this.getCollection();
 		
 		const update: UpdateFilter<UserEntity> = {
@@ -46,26 +51,38 @@ export class UserService {
 		);
 		
 		if (!result) {
-			throw new Error('[findOrCreateUser] Failed to create or fetch user.');
+			logger.error(`${SERVICE} Failed to find or create user for address ${address}`);
+			throw new Error(`${SERVICE} Failed to create or fetch user.`);
 		}
 		
 		return result;
 	}
 	
-	public async getUserByUserId(userId: ObjectId): Promise<UserEntity | null> {
+	public async getUserByUserId(userId: ObjectId): Promise<UserDocument | null> {
 		const users = this.getCollection();
-		
 		return await users.findOne({_id: userId});
 	}
 	
-	public async findAndUpdateUser(
+	public async findAndUpdateUser({
+		userId,
+		data
+	}: {
 		userId: ObjectId,
-		data: UserUpdateDto
-	): Promise<WithId<UserEntity> | null> {
+		data: unknown
+	}): Promise<UserDocument | null> {
+		const parsed = userUpdateSchema.safeParse(data);
+		if (!parsed.success) {
+			throw new ValidationError('Validation failed',
+				parsed.error.flatten()
+			);
+		}
 		const users = this.getCollection();
-		
-		const update: UpdateFilter<UserEntity> = {$set: data};
+		const update: UpdateFilter<UserEntity> = {$set: parsed.data};
 		const options: FindOneAndUpdateOptions = {returnDocument: 'after'};
+		
+		logDevOnly(`${SERVICE} Updating user ${userId.toString()} with data:`,
+			parsed.data
+		);
 		
 		return await users.findOneAndUpdate({_id: userId},
 			update,

@@ -4,25 +4,32 @@ import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/she
 import {shortenAddress} from '@/lib/utils';
 import {JSX, useState} from 'react';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
-import {LogOut, Pencil, Settings, User} from 'lucide-react';
+import {LogOut, Pencil, Settings, User, Wallet} from 'lucide-react';
 import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
-import {signOut, useSession} from 'next-auth/react';
+import {useSession} from 'next-auth/react';
+import {useRouter} from 'next/navigation';
+import {showToast} from '@/lib/toast-message';
+import {modal} from '@/context';
 
 export const WalletSheet = (): JSX.Element => {
 	const {data: session} = useSession();
 	const [open, setOpen] = useState(false);
 	const {disconnect} = useDisconnect();
+	const router = useRouter();
 	
 	const handleLogout = async () => {
 		try {
 			await disconnect();
-			await signOut({redirect: false});
 			setOpen(false);
-		} catch (err) {
-			console.error('[Logout] Failed to logout cleanly',
-				err
+			showToast('success',
+				'Logout',
+				'You have successfully logged out.'
 			);
+			router.push('/');
+			router.refresh();
+		} catch (err) {
+			setOpen(false);
 		}
 	};
 	
@@ -61,6 +68,9 @@ export const WalletSheet = (): JSX.Element => {
 					
 					{/* Actions */}
 					<div className="space-y-1">
+						<Button variant="ghost" className="w-full justify-start text-sm" onClick={() => modal.open()}>
+							<Wallet className="h-4 w-4 mr-2"/> View Balance
+						</Button>
 						<Button variant="ghost" className="w-full justify-start text-sm" asChild>
 							<Link href="/profile" onClick={() => setOpen(false)}>
 								<User className="h-4 w-4 mr-2"/> View Profile

@@ -1,6 +1,9 @@
-export async function fetchUserProfileData(): Promise<any | null> {
+export async function fetchUserProfileData(
+	apiFetch: typeof fetch,
+	onError?: (msg: string) => void
+): Promise<any | null> {
 	try {
-		const res = await fetch('/api/user/me',
+		const res = await apiFetch('/api/user/me',
 			{
 				method: 'GET',
 				headers: {
@@ -8,25 +11,39 @@ export async function fetchUserProfileData(): Promise<any | null> {
 				}
 			}
 		);
-		if (!res.ok) {
-			console.error('[SERVICE] Failed to fetch user profile',
-				res
-			);
+		
+		let json: any = null;
+		
+		try {
+			json = await res.json();
+		} catch (e) {
+			const msg = 'Invalid JSON response.';
+			onError?.(msg);
 			return null;
 		}
 		
-		const {data} = await res.json();
+		if (!res.ok) {
+			const msg = `HTTP ${res.status}: ${json?.message || res.statusText}`;
+			onError?.(msg);
+			return null;
+		}
 		
-		return data;
+		if (json?.status !== 'success') {
+			const msg = `API Error: ${json?.message || 'Unknown API error'}`;
+			onError?.(msg);
+			return null;
+		}
+		
+		return json.data;
 	} catch (err) {
-		console.error('[SERVICE] Error fetching user profile',
-			err
-		);
+		const msg = 'Unexpected error while loading profile.';
+		onError?.(msg);
 		return null;
 	}
 }
 
 export async function updateUserProfile(
+	apiFetch: typeof fetch,
 	updateFn: (data: any) => Promise<any>,
 	{
 		email,
@@ -37,42 +54,42 @@ export async function updateUserProfile(
 		name: string;
 		picture: string;
 	}
-): Promise<boolean> {
-	try {
-		const res = await fetch('/api/user/update',
-			{
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					email,
-					name,
-					picture
-				})
-			}
-		);
-		
-		if (!res.ok) {
-			console.error('[updateUserProfile] Server responded with',
-				res.status
-			);
-			return false;
-		}
-		
-		await updateFn({
-			user: {
+): Promise<void> {
+	const res = await apiFetch('/api/user/update',
+		{
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
 				email,
 				name,
 				picture
-			}
-		});
-		
-		return true;
-	} catch (err) {
-		console.error('[updateUserProfile] Error:',
-			err
-		);
-		return false;
+			})
+		}
+	);
+	
+	let json: any = null;
+	
+	try {
+		json = await res.json();
+	} catch (e) {
+		throw new Error(`Invalid JSON response: ${e instanceof Error ? e.message : 'Unknown error'}`);
 	}
+	
+	if (!res.ok) {
+		throw new Error(`HTTP ${res.status}: ${json?.message || res.statusText}`);
+	}
+	
+	if (json?.status !== 'success') {
+		throw new Error(`API Error: ${json?.message || 'Unknown API error'}`);
+	}
+	
+	await updateFn({
+		user: {
+			email,
+			name,
+			picture
+		}
+	});
 }

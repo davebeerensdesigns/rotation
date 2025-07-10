@@ -20,7 +20,10 @@ export const userResponseSchema = z.object({
 	userId: z.string(),
 	address: z.string(),
 	role: z.string(),
-	name: z.string(),
-	email: z.string(),
+	name: z.string()
+		.optional(),
+	email: z.string()
+		.optional(),
 	picture: z.string()
+		.optional()
 });

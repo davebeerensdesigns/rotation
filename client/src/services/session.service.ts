@@ -1,37 +1,43 @@
 import {User} from 'next-auth';
 
+const domainUrl = process.env.NEXT_PUBLIC_DOMAIN;
+if (!domainUrl) {
+	throw new Error('NEXT_PUBLIC_DOMAIN is not set');
+}
+
 export async function verifySIWEAuth({
 	message,
 	signature,
 	userAgent,
-	visitorId
+	visitorId,
+	ipAddress
 }: {
 	message: string;
 	signature: string;
 	userAgent: string;
 	visitorId: string;
+	ipAddress?: string;
 }): Promise<User | null> {
 	try {
-		if (!message) {
+		if (!message || !signature || !visitorId || !userAgent) {
 			return null;
 		}
-		// TODO: use ua-parser-js to send fingerprint data and store multiple session if user logs in on different devices
-		// TODO: maybe save accesstoken to verify in backend if session is still valid
-		const res = await fetch('http://localhost:3001/api/session/verify',
+		
+		const res = await fetch(`${domainUrl}/api/session/verify`,
 			{
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
 					'Content-Type': 'application/json'
 				},
-				mode: 'cors',
-				credentials: 'include',
 				body: JSON.stringify({
 					message,
 					signature,
 					userAgent,
-					visitorId
-				})
+					visitorId,
+					ipAddress
+				}),
+				credentials: 'include'
 			}
 		);
 		
@@ -49,14 +55,16 @@ export async function verifySIWEAuth({
 			user,
 			chainId,
 			accessToken,
+			accessTokenExpires,
 			refreshToken,
-			accessTokenExpires
+			refreshTokenExpires
 		} = data;
 		
 		return {
 			accessToken,
-			refreshToken,
 			accessTokenExpires,
+			refreshToken,
+			refreshTokenExpires,
 			chainId,
 			userId: user.userId,
 			address: user.address,
@@ -66,16 +74,19 @@ export async function verifySIWEAuth({
 			picture: user.picture ?? null
 		} satisfies User;
 	} catch (err) {
-		console.error('[verifySIWEAuth] Exception:',
+		console.error('[verifySIWEAuth] Error:',
 			err
 		);
 		return null;
 	}
 }
 
-export async function fetchUserSessionsData(): Promise<any[] | null> {
+export async function fetchUserSessionsData(
+	apiFetch: typeof fetch,
+	onError?: (msg: string) => void
+): Promise<any[] | null> {
 	try {
-		const res = await fetch('/api/session/all',
+		const res = await apiFetch('/api/session/all',
 			{
 				method: 'GET',
 				headers: {
@@ -85,17 +96,20 @@ export async function fetchUserSessionsData(): Promise<any[] | null> {
 		);
 		
 		if (!res.ok) {
+			onError?.('Failed to load sessions.');
 			return null;
 		}
 		
 		const {data} = await res.json();
 		
 		if (!Array.isArray(data) || data.length === 0) {
+			onError?.('No active sessions found.');
 			return null;
 		}
 		
 		return data;
 	} catch (err) {
+		onError?.('Error while loading your sessions.');
 		return null;
 	}
 }

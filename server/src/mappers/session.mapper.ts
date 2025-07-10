@@ -2,21 +2,16 @@ import {SessionEntity} from '../models/session.entity';
 import {SessionResponseDto} from '../dtos/session.dto';
 
 export class SessionMapper {
-	static toResponse(session: SessionEntity): SessionResponseDto {
+	static toResponse(
+		session: SessionEntity,
+		isCurrent = false
+	): SessionResponseDto {
 		return {
-			sessionId: session.sessionId,
-			visitorId: session.visitorId,
 			userAgent: session.userAgent,
 			chainId: session.chainId,
-			createdAt: session.createdAt,
+			createdAt: session.createdAt.toISOString(),
 			ipAddress: session.ipAddress ?? null,
-			rotatedAt: session.rotatedAt ?? null,
-			rotatedTo: session.rotatedTo ?? null,
-			revokedAt: session.revokedAt ?? null
+			isCurrent
 		};
-	}
-	
-	static toResponseArray(sessions: SessionEntity[]): SessionResponseDto[] {
-		return sessions.map(this.toResponse);
 	}
 }

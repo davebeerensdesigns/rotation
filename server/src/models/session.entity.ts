@@ -9,6 +9,7 @@ export interface SessionEntity {
 	visitorId: string;
 	userAgent: string;
 	createdAt: Date;
+	accessRotatedAt?: Date | null;
 	rotatedAt?: Date | null;
 	rotatedTo?: string | null;
 	revokedAt?: Date | null;
