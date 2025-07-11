@@ -5,10 +5,7 @@ export async function fetchUserProfileData(
 	try {
 		const res = await apiFetch('/api/user/me',
 			{
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json'
-				}
+				method: 'GET'
 			}
 		);
 		
@@ -58,9 +55,6 @@ export async function updateUserProfile(
 	const res = await apiFetch('/api/user/update',
 		{
 			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
 			body: JSON.stringify({
 				email,
 				name,

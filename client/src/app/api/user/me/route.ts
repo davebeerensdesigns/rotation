@@ -1,12 +1,12 @@
 import {auth} from '@/auth';
-import {NextResponse} from 'next/server';
+import {NextRequest, NextResponse} from 'next/server';
 
 const serverUrl = process.env.SERVER_DOMAIN;
 if (!serverUrl) {
 	throw new Error('SERVER_DOMAIN is not set');
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
 	const session = await auth();
 	
 	if (!session || !session.user?.accessToken) {
@@ -16,12 +16,14 @@ export async function GET() {
 	}
 	
 	try {
+		const fingerprint = req.headers.get('X-Client-Fingerprint') || '';
 		const backendRes = await fetch(`${serverUrl}/api/user/me`,
 			{
 				method: 'GET',
 				headers: {
 					'Authorization': `Bearer ${session.user.accessToken}`,
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-Client-Fingerprint': fingerprint
 				}
 			}
 		);

@@ -22,8 +22,18 @@ export default class SiweController {
 		req: Request<Record<string, never>, unknown, NonceRequestDto>,
 		res: Response<{ nonce: string } | ErrorResponse>
 	): Promise<Response> {
+		const visitorId = req.get('X-Client-Fingerprint');
+		if (!visitorId) {
+			logger.error(`${CONTROLLER} Missing 'X-Client-Fingerprint' header`);
+			return responseUtils.error(res,
+				{
+					error: `${CONTROLLER} Missing 'X-Client-Fingerprint' header`
+				},
+				400
+			);
+		}
 		try {
-			const nonce = await siweService.generateAndSaveNonce(req.body.visitorId);
+			const nonce = await siweService.generateAndSaveNonce(visitorId);
 			logger.debug(`${CONTROLLER} Generated nonce for visitor`);
 			return responseUtils.success(res,
 				{nonce}

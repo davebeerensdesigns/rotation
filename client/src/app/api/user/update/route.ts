@@ -1,12 +1,12 @@
 import {auth} from '@/auth';
-import {NextResponse} from 'next/server';
+import {NextRequest, NextResponse} from 'next/server';
 
 const serverUrl = process.env.SERVER_DOMAIN;
 if (!serverUrl) {
 	throw new Error('SERVER_DOMAIN is not set');
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
 	const session = await auth();
 	
 	if (!session || !session.user?.accessToken) {
@@ -18,12 +18,14 @@ export async function PATCH(req: Request) {
 	const body = await req.json();
 	
 	try {
+		const fingerprint = req.headers.get('X-Client-Fingerprint') || '';
 		const backendRes = await fetch(`${serverUrl}/api/user/update`,
 			{
 				method: 'PATCH',
 				headers: {
 					'Authorization': `Bearer ${session.user.accessToken}`,
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-Client-Fingerprint': fingerprint
 				},
 				body: JSON.stringify(body)
 			}

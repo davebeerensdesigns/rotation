@@ -5,23 +5,19 @@ if (!serverUrl) {
 	throw new Error('SERVER_DOMAIN is not set');
 }
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
 	try {
-		const body = await req.json();
-		const {visitorId} = body;
-		
+		const fingerprint = req.headers.get('X-Client-Fingerprint') || '';
 		const backendRes = await fetch(`${serverUrl}/api/siwe/nonce`,
 			{
-				method: 'POST',
+				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-Client-Fingerprint': fingerprint
 				},
 				mode: 'cors',
-				credentials: 'include',
-				body: JSON.stringify({
-					visitorId
-				})
+				credentials: 'include'
 			}
 		);
 		

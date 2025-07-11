@@ -86,12 +86,10 @@ export async function fetchUserSessionsData(
 	onError?: (msg: string) => void
 ): Promise<any[] | null> {
 	try {
+		
 		const res = await apiFetch('/api/session/all',
 			{
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json'
-				}
+				method: 'GET'
 			}
 		);
 		

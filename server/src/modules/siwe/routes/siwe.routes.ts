@@ -10,7 +10,7 @@ class SiweRoutes {
 	}
 	
 	private initializeRoutes(): void {
-		this.router.post('/nonce',
+		this.router.get('/nonce',
 			this.controller.nonce
 		);
 		this.router.get('/message-params',

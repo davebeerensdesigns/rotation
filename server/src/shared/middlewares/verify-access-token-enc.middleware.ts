@@ -24,6 +24,8 @@ export function verifyAccessTokenEncMiddleware() {
 		res: Response,
 		next: NextFunction
 	) => {
+		const fingerPrint = req.get('X-Client-Fingerprint');
+		console.log(fingerPrint);
 		try {
 			const accessToken = authUtils.extractBearerToken(req);
 			if (!accessToken) {
@@ -48,6 +50,14 @@ export function verifyAccessTokenEncMiddleware() {
 				return responseUtils.error(res,
 					{error: 'Invalid access token payload'},
 					401
+				);
+			}
+			
+			if (fingerPrint !== verified.visitorId) {
+				logger.error(`${MIDDLEWARE} Fingerprint does not match user session`);
+				return responseUtils.error(res,
+					{error: 'Fingerprint does not match user session'},
+					400
 				);
 			}
 			

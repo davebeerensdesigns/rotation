@@ -1,7 +1,8 @@
 'use client';
 
-import {signOut, useSession} from 'next-auth/react';
+import {signOut} from 'next-auth/react';
 import {setNextToast} from '@/lib/toast-message';
+import {getVisitorId} from '@/lib/fingerprint';
 
 type ApiFetch = (
 	input: string | Request | URL,
@@ -9,16 +10,27 @@ type ApiFetch = (
 ) => Promise<Response>;
 
 export function useApiFetch(): ApiFetch {
-	
 	return async function apiFetch(
-		input: string | Request | URL,
-		init?: RequestInit
+		input,
+		init = {}
 	): Promise<Response> {
+		const visitorId = await getVisitorId();
+		
+		const mergedHeaders = {
+			...init.headers,
+			'Accept': 'application/json',
+			'Content-Type': 'application/json',
+			'X-Client-Fingerprint': visitorId
+		};
+		
 		const res = await fetch(input,
-			init
+			{
+				...init,
+				headers: mergedHeaders
+			}
 		);
 		
-		if (res.status === 401) {
+		if (res.status === 401 || res.status === 400) {
 			setNextToast('error',
 				'Logout',
 				'Your session has been revoked or expired. Please log in again.'
