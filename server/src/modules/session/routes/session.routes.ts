@@ -13,7 +13,7 @@ class SessionRoutes {
 	
 	private initializeRoutes(): void {
 		this.router.post('/logout',
-			verifyAccessTokenEncMiddleware(),
+			verifyRefreshTokenEncMiddleware(),
 			this.controller.logout
 		);
 		this.router.get('/',

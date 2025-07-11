@@ -2,8 +2,8 @@
 
 import {SessionProvider} from 'next-auth/react';
 import {ReactNode} from 'react';
-import SessionWatcher from '@/components/providers/session-watcher';
 import {Session} from 'next-auth';
+import SessionWatcher from '@/components/providers/session-watcher';
 
 export default function SessionClientProvider({
 	children,

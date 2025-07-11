@@ -5,29 +5,24 @@ import {shortenAddress} from '@/lib/utils';
 import {JSX, useState} from 'react';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 import {LogOut, Pencil, Settings, User, Wallet} from 'lucide-react';
-import {useDisconnect} from '@reown/appkit/react';
 import Link from 'next/link';
-import {useSession} from 'next-auth/react';
-import {useRouter} from 'next/navigation';
-import {showToast} from '@/lib/toast-message';
+import {useSession, signOut} from 'next-auth/react';
 import {modal} from '@/context';
 
 export const WalletSheet = (): JSX.Element => {
 	const {data: session} = useSession();
 	const [open, setOpen] = useState(false);
-	const {disconnect} = useDisconnect();
-	const router = useRouter();
 	
 	const handleLogout = async () => {
 		try {
-			await disconnect();
+			await modal.disconnect();
+			'use server';
+			await signOut({
+				redirect: true,
+				redirectTo: '/'
+			});
+			
 			setOpen(false);
-			showToast('success',
-				'Logout',
-				'You have successfully logged out.'
-			);
-			router.push('/');
-			router.refresh();
 		} catch (err) {
 			setOpen(false);
 		}

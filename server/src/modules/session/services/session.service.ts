@@ -281,8 +281,7 @@ export class SessionService {
 		await sessions.updateOne(
 			{
 				userId,
-				visitorId: hashVisitorId,
-				sessionId
+				visitorId: hashVisitorId
 			},
 			{
 				$set: {

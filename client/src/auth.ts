@@ -11,7 +11,6 @@ const serverUrl = process.env.SERVER_DOMAIN;
 if (!serverUrl) {
 	throw new Error('SERVER_DOMAIN is not set');
 }
-
 export const {
 	handlers: {
 		GET,
@@ -69,10 +68,7 @@ export const {
 			}
 			
 			if (token.refreshTokenExpires && now > token.refreshTokenExpires) {
-				return {
-					...token,
-					error: 'RefreshAccessTokenError'
-				};
+				return null;
 			}
 			
 			try {
@@ -88,10 +84,7 @@ export const {
 				const json = await backendRes.json();
 				
 				if (json.status !== 'success') {
-					return {
-						...token,
-						error: 'RefreshAccessTokenError'
-					};
+					return null;
 				}
 				
 				return {
@@ -100,10 +93,7 @@ export const {
 					accessTokenExpires: json.data.accessTokenExpires
 				};
 			} catch {
-				return {
-					...token,
-					error: 'RefreshAccessTokenError'
-				};
+				return null;
 			}
 		},
 		async session({
@@ -137,16 +127,16 @@ export const {
 		async signOut(message) {
 			if ('token' in message && message.token) {
 				const {
-					accessToken
+					refreshToken
 				} = message.token;
 				
 				try {
-					if (accessToken) {
+					if (refreshToken) {
 						await fetch(`${serverUrl}/api/session/logout`,
 							{
 								method: 'POST',
 								headers: {
-									'Authorization': `Bearer ${accessToken}`,
+									'Authorization': `Bearer ${refreshToken}`,
 									'Content-Type': 'application/json'
 								}
 							}
@@ -160,6 +150,7 @@ export const {
 					);
 				}
 			}
+			
 		}
 	}
 });

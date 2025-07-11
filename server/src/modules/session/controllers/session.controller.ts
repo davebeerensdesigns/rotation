@@ -119,7 +119,7 @@ export default class SessionController {
 	}
 	
 	async logout(
-		req: AccessEncAuthRequest,
+		req: RefreshEncAuthRequest,
 		res: Response<{ success: boolean } | ErrorResponse>
 	): Promise<Response> {
 		const {

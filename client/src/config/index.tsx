@@ -6,7 +6,7 @@ import {
 	type SIWEVerifyMessageArgs
 } from '@reown/appkit-siwe';
 import {WagmiAdapter} from '@reown/appkit-adapter-wagmi';
-import {getSession, signIn, signOut} from 'next-auth/react';
+import {getSession, signIn} from 'next-auth/react';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import {AppKitNetwork, arbitrum, mainnet, optimism} from '@reown/appkit/networks';
 import {getAddress} from 'viem';
@@ -56,8 +56,6 @@ const normalizeAddress = (address: string): string => {
 		return address;
 	}
 };
-
-let isLoggingOut = false;
 
 export const siweConfig = createSIWEConfig({
 	getMessageParams: async () => {
@@ -164,35 +162,10 @@ export const siweConfig = createSIWEConfig({
 				'Successfully logged in!'
 			);
 			window.location.reload();
+			
 		}
 	},
 	signOut: async (): Promise<boolean> => {
-		if (isLoggingOut) return false;
-		isLoggingOut = true;
-		
-		const session = await getSession();
-		if (session) {
-			try {
-				if (session.error === 'RefreshAccessTokenError') {
-					setNextToast('error',
-						'Logout',
-						'Your session has been revoked or expired. Please log in again.'
-					);
-					await signOut({
-						redirect: true,
-						redirectTo: '/'
-					});
-				} else {
-					await signOut({
-						redirect: false
-					});
-				}
-				return true;
-			} catch {
-				return false;
-			}
-		}
-		
 		return true;
 	},
 	signOutOnDisconnect: true,

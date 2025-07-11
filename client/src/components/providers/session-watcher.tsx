@@ -1,63 +1,40 @@
 'use client';
 
-import {useEffect, useCallback, useRef} from 'react';
-import {useSession} from 'next-auth/react';
-import {
-	useAppKitAccount,
-	useDisconnect
-} from '@reown/appkit/react';
+import {useEffect} from 'react';
+import {useSession, signOut} from 'next-auth/react';
+import {useRouter} from 'next/navigation';
 
 export default function SessionWatcher() {
 	const {
-		data: session,
-		status: authStatus
+		data: session
 	} = useSession();
-	const {
-		status: walletStatus
-	} = useAppKitAccount();
-	const {disconnect} = useDisconnect();
-	
-	// ✅ Prevent repeated logout triggers
-	const hasLoggedOutRef = useRef(false);
-	
+	const router = useRouter();
 	// Unified logout logic
-	const handleLogout = useCallback(async () => {
-			if (hasLoggedOutRef.current) return;
-			hasLoggedOutRef.current = true;
-			
-			try {
-				console.warn('[SessionWatcher] Triggering logout via disconnect()...');
-				await disconnect();
-			} catch (err) {
-				console.error('[SessionWatcher] Disconnect failed:',
-					err
-				);
-			}
-		},
-		[disconnect]
-	);
+	const handleLogout = async () => {
+		try {
+			console.warn('[SessionWatcher] Triggering logout via disconnect()...');
+			await signOut({
+				redirect: false
+			});
+		} catch (err) {
+			console.error('[SessionWatcher] Disconnect failed:',
+				err
+			);
+		}
+	};
 	
 	useEffect(() => {
-			if (authStatus !== 'authenticated') return;
-			
-			// Case 1: Token refresh error (session invalid)
 			if (session?.error === 'RefreshAccessTokenError') {
 				console.warn('[SessionWatcher] RefreshAccessTokenError detected in session');
-				handleLogout();
-				return;
-			}
-			
-			// Case 2: Wallet manually disconnected
-			if (walletStatus === 'disconnected') {
-				console.warn('[SessionWatcher] Wallet disconnected while authenticated');
-				handleLogout();
+				handleLogout()
+					.then(() => {
+						router.push('/');
+					});
 				return;
 			}
 		},
-		[authStatus,
-			session?.error,
-			walletStatus,
-			handleLogout]
+		[session?.error,
+			router]
 	);
 	
 	return null;
